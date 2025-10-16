@@ -31,7 +31,7 @@ interface UseVisitorWebSocketReturn {
 }
 
 const WEBSOCKET_URL = import.meta.env.VITE_VISITOR_WS_URL || 'ws://localhost:8787/ws/dashboard';
-const API_KEY = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_api_key';
+const API_KEY = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
 
 export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
   const [visitors, setVisitors] = useState<Visitor[]>([]);

@@ -53,7 +53,7 @@ Click **"Add variable"** and add these **TWO** variables:
 
 #### Variable 2:
 - **Name**: `VITE_TIPPEN_API_KEY`
-- **Value**: `demo_api_key`
+- **Value**: `demo_tippen_2025_live_k8m9n2p4q7r1`
 
 ### Step 2: Trigger Redeploy
 
