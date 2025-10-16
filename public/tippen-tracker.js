@@ -1,0 +1,236 @@
+/**
+ * Tippen Visitor Tracking Script
+ * Embed this script on client websites to track visitors
+ * Usage: <script src="https://tippen.app/tippen-tracker.js" data-api-key="YOUR_API_KEY"></script>
+ */
+
+(function() {
+  'use strict';
+
+  // Configuration
+  const script = document.currentScript;
+  const apiKey = script?.getAttribute('data-tippen-api-key') || script?.getAttribute('data-api-key');
+  const backendUrl = script?.getAttribute('data-tippen-backend') || 'https://api.tippen.app';
+  const TIPPEN_API_URL = `${backendUrl}/track/visitor`;
+
+  if (!apiKey) {
+    console.warn('[Tippen] API key not provided');
+    return;
+  }
+
+  console.log('[Tippen] Tracker initialized with API key:', apiKey);
+
+  // Generate or retrieve visitor ID
+  function getVisitorId() {
+    let visitorId = localStorage.getItem('tippen_visitor_id');
+    if (!visitorId) {
+      visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('tippen_visitor_id', visitorId);
+    }
+    return visitorId;
+  }
+
+  // Get visitor information
+  function getVisitorInfo() {
+    return {
+      visitorId: getVisitorId(),
+      url: window.location.href,
+      referrer: document.referrer || 'direct',
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      screenResolution: `${screen.width}x${screen.height}`,
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // Enrichment data (will be filled by backend)
+      company: null,
+      ip: null
+    };
+  }
+
+  // Send visitor data to Tippen
+  async function sendVisitorPing(event = 'pageview') {
+    try {
+      const visitorData = getVisitorInfo();
+
+      const response = await fetch(TIPPEN_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tippen-API-Key': apiKey
+        },
+        body: JSON.stringify({
+          event,
+          visitor: visitorData,
+          website: window.location.hostname
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Tippen] Visitor tracked:', data);
+
+        // Store session ID if provided
+        if (data.sessionId) {
+          sessionStorage.setItem('tippen_session_id', data.sessionId);
+        }
+      }
+    } catch (error) {
+      console.error('[Tippen] Tracking error:', error);
+    }
+  }
+
+  // Track page views
+  sendVisitorPing('pageview');
+
+  // Track time on page (send ping every 30 seconds)
+  let timeOnPage = 0;
+  const heartbeatInterval = setInterval(() => {
+    timeOnPage += 30;
+    sendVisitorPing('heartbeat');
+  }, 30000);
+
+  // Track page exit
+  window.addEventListener('beforeunload', () => {
+    clearInterval(heartbeatInterval);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close();
+    }
+
+    // Use sendBeacon for reliable tracking on page exit
+    const visitorData = getVisitorInfo();
+    navigator.sendBeacon(
+      TIPPEN_API_URL,
+      JSON.stringify({
+        event: 'exit',
+        visitor: visitorData,
+        timeOnPage
+      })
+    );
+  });
+
+  // Connect to WebSocket for real-time video invites
+  let ws = null;
+  function connectWebSocket() {
+    const wsUrl = backendUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    const visitorId = getVisitorId();
+    const wsConnectionUrl = `${wsUrl}/ws/visitor?visitorId=${visitorId}&apiKey=${apiKey}`;
+    
+    console.log('[Tippen] Connecting to WebSocket:', wsConnectionUrl);
+    
+    try {
+      ws = new WebSocket(wsConnectionUrl);
+      
+      ws.onopen = () => {
+        console.log('[Tippen] ✅ WebSocket connected for video invites');
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('[Tippen] WebSocket message received:', data);
+          
+          if (data.type === 'VIDEO_INVITE' && data.guestUrl) {
+            console.log('[Tippen] Video invite received, showing popup');
+            showVideoCallPopup(data.guestUrl);
+          }
+        } catch (error) {
+          console.error('[Tippen] Error parsing WebSocket message:', error);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('[Tippen] WebSocket error:', error);
+      };
+      
+      ws.onclose = () => {
+        console.log('[Tippen] WebSocket closed, reconnecting in 5s...');
+        setTimeout(connectWebSocket, 5000);
+      };
+    } catch (error) {
+      console.error('[Tippen] Error connecting WebSocket:', error);
+    }
+  }
+  
+  // Connect to WebSocket
+  connectWebSocket();
+
+  // Show video call popup
+  function showVideoCallPopup(guestUrl) {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'tippen-video-modal';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    // Create iframe for video
+    const videoContainer = document.createElement('div');
+    videoContainer.style.cssText = `
+      width: 90vw;
+      max-width: 1200px;
+      height: 90vh;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.src = guestUrl;
+    iframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+    `;
+    iframe.allow = 'camera; microphone; display-capture; autoplay';
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      font-size: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 1;
+    `;
+    closeBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      sendVisitorPing('video_declined');
+    };
+
+    videoContainer.appendChild(iframe);
+    videoContainer.appendChild(closeBtn);
+    overlay.appendChild(videoContainer);
+    document.body.appendChild(overlay);
+
+    // Track video invite acceptance
+    sendVisitorPing('video_accepted');
+  }
+
+  console.log('[Tippen] Visitor tracking initialized');
+
+  // Expose global object for detection
+  window.TippenTracker = {
+    version: '1.0.0',
+    visitorId: getVisitorId(),
+    trackEvent: sendVisitorPing,
+    initialized: true
+  };
+})();

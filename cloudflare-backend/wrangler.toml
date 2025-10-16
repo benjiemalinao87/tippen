@@ -1,0 +1,23 @@
+name = "tippen-backend"
+main = "src/index.ts"
+compatibility_date = "2025-01-16"
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Object bindings
+[[durable_objects.bindings]]
+name = "VISITOR_COORDINATOR"
+class_name = "VisitorCoordinator"
+script_name = "tippen-backend"
+
+# Durable Object migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["VisitorCoordinator"]
+
+# Development environment
+[env.dev]
+vars = { ENVIRONMENT = "development" }
+
+# Production environment
+[env.production]
+vars = { ENVIRONMENT = "production" }

@@ -1,19 +1,14 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Settings, Bot, Calendar, Moon, Sun, Mic } from 'lucide-react';
-import { PerformanceDashboard } from './components/PerformanceDashboard';
-import { AgentConfig } from './components/AgentConfig';
-import { Recordings } from './components/Recordings';
-import { FlowBuilder } from './components/FlowBuilder';
+import { BarChart3, Calendar, Moon, Sun, Users } from 'lucide-react';
+import { PerformanceDashboard } from './features/dashboard';
+import { Visitors } from './features/visitors';
 import { agentApi } from './lib/api';
-import type { Agent } from './types';
+import type { Agent } from './shared/types';
 
-type View = 'dashboard' | 'config' | 'recordings' | 'flow';
+type View = 'dashboard' | 'visitors';
 
 function App() {
-  // Check URL for flow builder route
-  const isFlowBuilder = window.location.pathname === '/flow-builder';
-  
-  const [currentView, setCurrentView] = useState<View>(isFlowBuilder ? 'flow' : 'dashboard');
+  const [currentView, setCurrentView] = useState<View>('dashboard');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [darkMode, setDarkMode] = useState(() => {
@@ -60,25 +55,6 @@ function App() {
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
-  // If flow builder route, render only that
-  if (isFlowBuilder) {
-    return (
-      <div className="h-screen bg-gray-50 dark:bg-gray-900">
-        <FlowBuilder />
-        
-        {/* Floating Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="fixed bottom-6 right-6 p-3 rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all duration-200 z-50"
-          aria-label="Toggle dark mode"
-          type="button"
-        >
-          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Fixed Header */}
@@ -87,27 +63,11 @@ function App() {
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Bot className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">CHAU Voice AI</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Tippen</h1>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              {agents.length > 0 && (
-                <select
-                  value={selectedAgentId}
-                  onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="">All Agents</option>
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setCurrentView('dashboard')}
@@ -121,27 +81,15 @@ function App() {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setCurrentView('recordings')}
+                  onClick={() => setCurrentView('visitors')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                    currentView === 'recordings'
+                    currentView === 'visitors'
                       ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
                       : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                   }`}
                 >
-                  <Mic className="w-4 h-4" />
-                  Recordings
-                </button>
-                <button
-                  onClick={() => setCurrentView('config')}
-                  disabled={!selectedAgentId}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    currentView === 'config'
-                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  Configuration
+                  <Users className="w-4 h-4" />
+                  Visitors
                 </button>
               </div>
             </div>
@@ -188,31 +136,8 @@ function App() {
           </div>
         )}
 
-        {currentView === 'recordings' && (
-          <Recordings />
-        )}
-
-        {currentView === 'config' && selectedAgentId && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Agent Configuration</h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Configure voice, behavior, and prompts for your AI agent
-              </p>
-            </div>
-
-            <AgentConfig agentId={selectedAgentId} />
-          </div>
-        )}
-
-        {currentView === 'config' && !selectedAgentId && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <Settings className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Agent Selected</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Please select an agent from the dropdown above to view and edit its configuration.
-            </p>
-          </div>
+        {currentView === 'visitors' && (
+          <Visitors />
         )}
         </div>
       </main>

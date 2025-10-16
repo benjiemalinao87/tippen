@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acme Corporation - Products & Services</title>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TIPPEN TRACKING SCRIPT - PLACE IN <HEAD> TAG (RECOMMENDED) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <script
+    src="/tippen-tracker.js"
+    data-tippen-api-key="demo_api_key"
+    data-tippen-backend="http://localhost:64492"
+  ></script>
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Regular website styles -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+    }
+
+    nav a {
+      color: white;
+      text-decoration: none;
+      transition: opacity 0.3s;
+    }
+
+    nav a:hover {
+      opacity: 0.8;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      opacity: 0.9;
+    }
+
+    .cta-button {
+      background: white;
+      color: #667eea;
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 50px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+
+    .section-title {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #667eea;
+    }
+
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 4rem;
+    }
+
+    .product-card {
+      background: white;
+      border-radius: 10px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .product-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+
+    .product-card h3 {
+      color: #667eea;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .product-card p {
+      color: #666;
+      margin-bottom: 1rem;
+    }
+
+    .price {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #333;
+      margin: 1rem 0;
+    }
+
+    .features {
+      background: #f8f9fa;
+      padding: 4rem 2rem;
+    }
+
+    .features-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .feature-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature h3 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+    }
+
+    footer {
+      background: #333;
+      color: white;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .contact-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+
+    .contact-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Tippen integration indicator (for demo purposes) */
+    .tippen-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #667eea;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      z-index: 1000;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .tippen-badge::before {
+      content: '🟢';
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <nav>
+      <div class="logo">🚀 Acme Corporation</div>
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#products">Products</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <h1>Transform Your Business</h1>
+    <p>Leading enterprise solutions for modern companies</p>
+    <button class="cta-button" onclick="scrollToContact()">Get Started Today</button>
+  </section>
+
+  <!-- Products Section -->
+  <section class="container" id="products">
+    <h2 class="section-title">Our Products</h2>
+    <div class="products">
+      <div class="product-card">
+        <h3>🎯 Enterprise Suite</h3>
+        <p>Complete business management platform with CRM, analytics, and automation tools.</p>
+        <div class="price">$999/mo</div>
+        <button class="cta-button">Learn More</button>
+      </div>
+
+      <div class="product-card">
+        <h3>☁️ Cloud Platform</h3>
+        <p>Scalable cloud infrastructure with 99.9% uptime guarantee and global CDN.</p>
+        <div class="price">$499/mo</div>
+        <button class="cta-button">Learn More</button>
+      </div>
+
+      <div class="product-card">
+        <h3>🔒 Security Pro</h3>
+        <p>Advanced security suite with threat detection, monitoring, and compliance tools.</p>
+        <div class="price">$299/mo</div>
+        <button class="cta-button">Learn More</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <h2 class="section-title">Why Choose Acme?</h2>
+    <div class="features-grid">
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h3>Lightning Fast</h3>
+        <p>Optimized performance with sub-second response times</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🛡️</div>
+        <h3>Enterprise Security</h3>
+        <p>Bank-level encryption and SOC 2 compliance</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">📊</div>
+        <h3>Advanced Analytics</h3>
+        <p>Real-time insights and customizable dashboards</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🌍</div>
+        <h3>Global Scale</h3>
+        <p>Deployed across 50+ countries worldwide</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section class="contact-section" id="contact">
+    <h2>Ready to Get Started?</h2>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem;">Join 10,000+ companies already using Acme</p>
+    <button class="cta-button">Schedule a Demo</button>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 Acme Corporation. All rights reserved.</p>
+    <p style="margin-top: 1rem; font-size: 0.9rem;">
+      <a href="#privacy" style="color: white; margin: 0 1rem;">Privacy Policy</a>
+      <a href="#terms" style="color: white; margin: 0 1rem;">Terms of Service</a>
+      <a href="#contact" style="color: white; margin: 0 1rem;">Contact Us</a>
+    </p>
+  </footer>
+
+  <!-- Tippen Badge (shows tracking is active) -->
+  <div class="tippen-badge">Tippen Tracking Active</div>
+
+  <!-- Page Scripts -->
+  <script>
+    function scrollToContact() {
+      document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Simulate user interactions for Tippen tracking demo
+    console.log('🎯 Acme Corporation website loaded');
+    console.log('📡 Tippen tracking script should be sending visitor data');
+
+    // Log tracking status
+    setTimeout(() => {
+      if (window.TippenTracker) {
+        console.log('✅ Tippen Tracker initialized successfully');
+        console.log('Visitor ID:', localStorage.getItem('tippen_visitor_id'));
+      } else {
+        console.warn('⚠️ Tippen Tracker not found');
+      }
+    }, 1000);
+  </script>
+
+</body>
+</html>

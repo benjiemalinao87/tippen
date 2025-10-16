@@ -452,3 +452,244 @@ Restructured the app layout to use flexbox with a fixed header and scrollable co
 ### Files Modified
 - `src/App.tsx` - Restructured layout with fixed header and scrollable content
 
+---
+
+## Comprehensive Visitor Visualization System (October 16, 2025)
+
+### Feature Implementation
+Created a complete visitor tracking and visualization system with multiple components showing real-time visitor data, engagement metrics, geographic distribution, and detailed visitor information.
+
+### Implementation Details
+Created 6 new focused components, each handling a specific aspect of visitor visualization:
+
+1. **VisitorStatsCards** - Overview metrics dashboard
+   - Total visitors with active count
+   - Total page views with average per visitor
+   - Engagement rate (visitors with >1 page view)
+   - Average time on site per visitor
+   - Color-coded gradient cards with icons
+
+2. **VisitorActivityChart** - Time-based activity tracking
+   - Bar chart showing visitors by hour
+   - Last 7 hours of activity
+   - Uses shared BarChart component
+   - Real-time activity visualization
+
+3. **TopCompaniesWidget** - Most engaged visitors ranking
+   - Engagement score = (pageViews × 10) + timeSpent
+   - Top 5 visitors with medal badges (gold, silver, bronze)
+   - Shows page views and time spent
+   - Real-time status indicators
+
+4. **VisitorMapWidget** - Geographic distribution
+   - Groups visitors by location
+   - Progress bars showing relative distribution
+   - Top 8 locations displayed
+   - Total location count summary
+
+5. **VisitorTable** - Comprehensive visitor list
+   - Sortable by recent, page views, or location
+   - Status indicators (active, video_invited, in_call)
+   - Role-based color-coded badges
+   - Quick actions (call, view details)
+   - Click row to view details
+
+6. **VisitorDetailsModal** - Deep dive into single visitor
+   - Quick stats cards (page views, time on site, location, role)
+   - Visitor information section
+   - Technical details
+   - Activity timeline
+   - Action buttons (start video call, view history)
+
+### How It Should Be Done
+```typescript
+// ✅ CORRECT - Modular component structure
+// Main Visitors component orchestrates child components
+<div className="space-y-6">
+  <VisitorStatsCards visitors={visitors} />
+  
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <VisitorActivityChart visitors={visitors} />
+    <TopCompaniesWidget visitors={visitors} />
+  </div>
+  
+  <VisitorMapWidget visitors={visitors} />
+  
+  <VisitorTable 
+    visitors={visitors}
+    onViewDetails={setSelectedVisitor}
+    onStartCall={handleStartCall}
+  />
+  
+  {selectedVisitor && (
+    <VisitorDetailsModal
+      visitor={selectedVisitor}
+      onClose={() => setSelectedVisitor(null)}
+    />
+  )}
+</div>
+
+// Handle undefined values safely
+const getRoleBadgeColor = (role: string | undefined): string => {
+  if (!role) return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+  const roleLower = role.toLowerCase();
+  // ... rest of logic
+};
+
+// Always add keys to lists, with fallback
+const visitorKey = visitor.visitorId || visitor.id || `visitor-${index}`;
+```
+
+### How It Should NOT Be Done
+```typescript
+// ❌ WRONG - Everything in one massive component
+export function Visitors() {
+  return (
+    <div>
+      {/* 500+ lines of mixed logic and UI */}
+      <table>...</table>
+      <div>stats...</div>
+      <div>charts...</div>
+    </div>
+  );
+}
+
+// ❌ WRONG - No undefined handling
+const getRoleBadgeColor = (role: string) => {
+  const roleLower = role.toLowerCase(); // Crashes if role is undefined
+};
+
+// ❌ WRONG - Missing keys in lists
+visitors.map((visitor) => (
+  <div>{visitor.company}</div> // Warning: Each child should have unique key
+))
+```
+
+### Key Takeaways
+- **Separation of concerns**: Each visualization component handles one specific aspect
+- **File size**: Keep components under 200 lines by splitting into focused files
+- **Null safety**: Always handle undefined/null values before calling methods like `.toLowerCase()`
+- **Keys in lists**: Always provide unique keys, with fallbacks like `${prefix}-${index}`
+- **Reusability**: Use shared components (BarChart, DonutChart) across features
+- **Props interface**: Pass only what's needed (visitors array and callbacks)
+- **Engagement metrics**: Calculate meaningful scores (pageViews × weight + timeSpent)
+- **Interactive elements**: Click rows, hover effects, modal details
+- **Status indicators**: Visual feedback for real-time states (active, in call, etc.)
+- **Responsive design**: Grid layouts that adapt (1 col mobile, 2 cols desktop)
+- **Color coding**: Consistent color schemes for roles, status, metrics
+- **Progressive disclosure**: Summary → Table → Details modal for information hierarchy
+
+### Common Errors Fixed
+1. **"Cannot read properties of undefined (reading 'toLowerCase')"**
+   - Added undefined check before calling string methods
+   - Provided default return value for undefined cases
+   - Used fallback values in display (`visitor.lastRole || 'Unknown'`)
+
+2. **"Each child in a list should have a unique key prop"**
+   - Added key prop to mapped elements
+   - Used robust key selection with fallbacks: `visitor.visitorId || visitor.id || \`visitor-${index}\``
+   - Wrapped map return in block to properly structure JSX
+
+### Files Created
+- `src/features/visitors/components/VisitorDetailsModal.tsx` - Detailed visitor information modal
+- `src/features/visitors/components/VisitorStatsCards.tsx` - Overview metric cards
+- `src/features/visitors/components/VisitorActivityChart.tsx` - Time-based activity visualization
+- `src/features/visitors/components/TopCompaniesWidget.tsx` - Top engaged visitors widget
+- `src/features/visitors/components/VisitorMapWidget.tsx` - Geographic distribution visualization
+- `src/features/visitors/components/VisitorTable.tsx` - Comprehensive visitor table
+- `src/features/visitors/components/index.ts` - Component exports
+
+### Files Modified
+- `src/features/visitors/components/Visitors.tsx` - Refactored to use new components
+
+---
+
+## Toggle Switch Restoration and Badge Styling (October 16, 2025)
+
+### Change Requested
+User wanted to restore the toggle switch (on/off) for video calls instead of separate action buttons, and improve role badge styling to match a cleaner, pill-style design.
+
+### Implementation Details
+
+1. **Toggle Switch Restoration:**
+   - Changed from action buttons (Phone + More) back to toggle switch
+   - Toggle now shows ON state when call is active
+   - Added `activeCall` and `onToggleCall` props to VisitorTable
+   - Toggle integrates with existing video call system
+
+2. **Enhanced Badge Styling:**
+   - Changed from rounded-md to rounded-full for pill shape
+   - Added subtle borders for better definition
+   - Used lighter, more translucent backgrounds (50/80 opacity)
+   - Increased padding for better visual balance (px-3 py-1.5)
+   - Applied consistent styling across all role types:
+     * Purple: CEO, CTO, CFO, VP, Chief
+     * Green: Engineer, Developer, Tech, Scientist
+     * Blue: Product, Manager
+     * Orange: Sales, Marketing, Director
+     * Pink: Design, Creative
+     * Amber: Founder, Owner
+     * Gray: Default/Unknown
+
+### How It Should Be Done
+```typescript
+// ✅ CORRECT - Toggle switch with proper state management
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    onToggleCall(visitorId, !isActiveCall);
+  }}
+  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+    isActiveCall
+      ? 'bg-blue-600 dark:bg-blue-500'
+      : 'bg-gray-200 dark:bg-gray-700'
+  }`}
+>
+  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+    isActiveCall ? 'translate-x-6' : 'translate-x-1'
+  }`} />
+</button>
+
+// ✅ CORRECT - Modern pill-style badges with borders
+const getRoleBadgeColor = (role: string | undefined): string => {
+  if (!role) return 'bg-gray-50/80 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
+  // ... more conditions
+  return 'bg-blue-50/80 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700';
+};
+
+<span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${getRoleBadgeColor(role)}`}>
+  {role}
+</span>
+```
+
+### How It Should NOT Be Done
+```typescript
+// ❌ WRONG - Separate action buttons without toggle
+<button onClick={() => onStartCall(visitor)}>
+  <Phone />
+</button>
+<button onClick={() => onViewDetails(visitor)}>
+  <MoreVertical />
+</button>
+
+// ❌ WRONG - Heavy solid background badges
+<span className="bg-purple-600 text-white px-2 py-1 rounded-md">
+  {role}
+</span>
+```
+
+### Key Takeaways
+- **Toggle switches** provide instant visual feedback for binary states (on/off)
+- **Pill-style badges** (rounded-full) look more modern than rounded rectangles
+- **Translucent backgrounds** (50/80 opacity) are softer than solid colors
+- **Subtle borders** add definition without being heavy
+- **Proper padding** (px-3 py-1.5) creates balanced pill shapes
+- **Stop propagation** on toggle clicks prevents triggering row click events
+- **Consistent color mapping** helps users quickly identify role types
+- Dark mode requires separate color classes for optimal visibility
+
+### Files Modified
+- `src/features/visitors/components/VisitorTable.tsx` - Restored toggle switch, updated badge styling
+- `src/features/visitors/components/VisitorDetailsModal.tsx` - Updated badge styling to match
+- `src/features/visitors/components/Visitors.tsx` - Added toggle handler props
+
