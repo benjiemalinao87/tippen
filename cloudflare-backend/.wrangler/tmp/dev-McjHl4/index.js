@@ -1143,7 +1143,13 @@ var VisitorCoordinator = class {
       });
     }
     await this.state.storage.put("visitors", Array.from(this.visitors.entries()));
-    await this.state.storage.setAlarm(Date.now() + 30 * 1e3);
+    const activeSockets = this.state.getWebSockets();
+    if (activeSockets.length > 0 || this.visitors.size > 0) {
+      console.log("[VisitorCoordinator] Rescheduling alarm - Active connections:", activeSockets.length, "Visitors:", this.visitors.size);
+      await this.state.storage.setAlarm(Date.now() + 30 * 1e3);
+    } else {
+      console.log("[VisitorCoordinator] No active connections or visitors - stopping alarm");
+    }
   }
 };
 __name(VisitorCoordinator, "VisitorCoordinator");

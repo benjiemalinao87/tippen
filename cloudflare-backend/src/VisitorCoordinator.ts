@@ -49,7 +49,7 @@ export class VisitorCoordinator {
   /**
    * Handle WebSocket upgrade from admin dashboard or visitor
    */
-  private handleWebSocketUpgrade(request: Request): Response {
+  private async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const connectionType = url.searchParams.get('connectionType') || 'dashboard';
     const visitorId = url.searchParams.get('visitorId');
@@ -62,7 +62,7 @@ export class VisitorCoordinator {
 
     if (connectionType === 'visitor' && visitorId) {
       console.log('[VisitorCoordinator] New visitor WebSocket connection:', visitorId);
-      
+
       // Attach metadata to track this as a visitor connection
       (server as any).serializeAttachment({
         connectedAt: Date.now(),
@@ -94,6 +94,13 @@ export class VisitorCoordinator {
         type: 'INITIAL_VISITORS',
         visitors: visitorList,
       }));
+    }
+
+    // Ensure alarm is running when there are active connections
+    const currentAlarm = await this.state.storage.getAlarm();
+    if (currentAlarm === null) {
+      console.log('[VisitorCoordinator] Starting cleanup alarm due to new connection');
+      await this.state.storage.setAlarm(Date.now() + 30 * 1000);
     }
 
     return new Response(null, {
@@ -328,7 +335,14 @@ export class VisitorCoordinator {
     // Persist updated visitors
     await this.state.storage.put('visitors', Array.from(this.visitors.entries()));
 
-    // Schedule next cleanup in 30 seconds (frequent checks for real-time accuracy)
-    await this.state.storage.setAlarm(Date.now() + 30 * 1000);
+    // Only reschedule alarm if there are active connections or visitors
+    const activeSockets = this.state.getWebSockets();
+    if (activeSockets.length > 0 || this.visitors.size > 0) {
+      console.log('[VisitorCoordinator] Rescheduling alarm - Active connections:', activeSockets.length, 'Visitors:', this.visitors.size);
+      await this.state.storage.setAlarm(Date.now() + 30 * 1000);
+    } else {
+      console.log('[VisitorCoordinator] No active connections or visitors - stopping alarm');
+      // Alarm will restart when new connection is made
+    }
   }
 }
