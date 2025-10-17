@@ -185,21 +185,52 @@ export class VisitorCoordinator {
     // Persist
     await this.state.storage.put('visitors', Array.from(this.visitors.entries()));
 
+    // Debug: Check all stored visitor sockets
+    console.log('[VisitorCoordinator] Total visitor sockets stored:', this.visitorSockets.size);
+    console.log('[VisitorCoordinator] Looking for visitor:', visitorId);
+    console.log('[VisitorCoordinator] Available visitor IDs:', Array.from(this.visitorSockets.keys()));
+
     // Send video invite directly to visitor's WebSocket if connected
     const visitorSocket = this.visitorSockets.get(visitorId);
     if (visitorSocket) {
-      console.log('[VisitorCoordinator] Sending VIDEO_INVITE to visitor:', visitorId);
+      console.log('[VisitorCoordinator] Found visitor socket, sending VIDEO_INVITE');
       try {
         visitorSocket.send(JSON.stringify({
           type: 'VIDEO_INVITE',
           guestUrl,
           visitorId,
         }));
+        console.log('[VisitorCoordinator] VIDEO_INVITE sent successfully');
       } catch (error) {
         console.error('[VisitorCoordinator] Error sending video invite to visitor:', error);
       }
     } else {
-      console.log('[VisitorCoordinator] Visitor WebSocket not connected:', visitorId);
+      console.log('[VisitorCoordinator] ⚠️ Visitor WebSocket NOT found in map!');
+      console.log('[VisitorCoordinator] Trying to broadcast to all sockets as fallback...');
+
+      // Fallback: Try to find visitor socket from Hibernation API
+      const allSockets = this.state.getWebSockets();
+      console.log('[VisitorCoordinator] Total active WebSockets:', allSockets.length);
+
+      for (const ws of allSockets) {
+        try {
+          const attachment = (ws as any).deserializeAttachment();
+          console.log('[VisitorCoordinator] Socket attachment:', attachment);
+
+          if (attachment && attachment.type === 'visitor' && attachment.visitorId === visitorId) {
+            console.log('[VisitorCoordinator] Found visitor socket via Hibernation API!');
+            ws.send(JSON.stringify({
+              type: 'VIDEO_INVITE',
+              guestUrl,
+              visitorId,
+            }));
+            console.log('[VisitorCoordinator] VIDEO_INVITE sent via fallback method');
+            break;
+          }
+        } catch (error) {
+          console.error('[VisitorCoordinator] Error in fallback method:', error);
+        }
+      }
     }
 
     // Broadcast to dashboards
