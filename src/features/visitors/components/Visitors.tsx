@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Video, X, Wifi, WifiOff } from 'lucide-react';
 import { useVisitorWebSocket } from '../../../shared/hooks';
 import type { Visitor as VisitorType } from '../../../shared/hooks';
@@ -8,6 +8,7 @@ import { TopCompaniesWidget } from './TopCompaniesWidget';
 import { VisitorMapWidget } from './VisitorMapWidget';
 import { VisitorTable } from './VisitorTable';
 import { VisitorDetailsModal } from './VisitorDetailsModal';
+import { slackService } from '../../../services/slackService';
 
 // Extended visitor interface for display purposes
 interface Visitor extends VisitorType {
@@ -189,6 +190,28 @@ export function Visitors() {
   const [videoSession, setVideoSession] = useState<VideoSession | null>(null);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'waiting'>('connecting');
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
+  const previousVisitorCountRef = useRef<number>(0);
+
+  // Send Slack notification for new visitors
+  useEffect(() => {
+    if (previousVisitorCountRef.current > 0 && visitors.length > previousVisitorCountRef.current) {
+      // New visitor(s) detected
+      const newVisitors = visitors.slice(previousVisitorCountRef.current);
+      newVisitors.forEach(visitor => {
+        if (slackService.isEnabled()) {
+          slackService.sendNewVisitorNotification({
+            id: visitor.id || visitor.visitorId,
+            company: visitor.company,
+            revenue: visitor.revenue || 'N/A',
+            staff: visitor.staff || 0,
+            lastSignedRole: visitor.lastRole,
+            lastActivity: visitor.lastActivity || new Date().toLocaleString()
+          });
+        }
+      });
+    }
+    previousVisitorCountRef.current = visitors.length;
+  }, [visitors]);
 
   // Handle start video call
   const handleStartCall = async (visitor: Visitor) => {
@@ -227,6 +250,16 @@ export function Visitors() {
           console.log('Video invite sent to visitor');
         } catch (error) {
           console.error('Failed to send video invite:', error);
+        }
+
+        // Send Slack notification about video call request
+        if (slackService.isEnabled()) {
+          await slackService.sendVideoCallRequestNotification({
+            visitorCompany: visitor.company,
+            adminName: 'Tippen Agent',
+            hostUrl: data.urls.host,
+            guestUrl: data.urls.guest
+          });
         }
       } else {
         console.error('Failed to create session:', data);

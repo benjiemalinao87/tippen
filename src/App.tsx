@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Moon, Sun, Users } from 'lucide-react';
+import { BarChart3, Calendar, Moon, Sun, Users, Settings } from 'lucide-react';
 import { PerformanceDashboard } from './features/dashboard';
 import { Visitors } from './features/visitors';
+import { Settings as SettingsPage } from './features/settings';
 import { agentApi } from './lib/api';
 import type { Agent } from './shared/types';
 
-type View = 'dashboard' | 'visitors';
+type View = 'dashboard' | 'visitors' | 'settings';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -91,6 +92,17 @@ function App() {
                   <Users className="w-4 h-4" />
                   Visitors
                 </button>
+                <button
+                  onClick={() => setCurrentView('settings')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+                    currentView === 'settings'
+                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </button>
               </div>
             </div>
           </div>
@@ -138,6 +150,10 @@ function App() {
 
         {currentView === 'visitors' && (
           <Visitors />
+        )}
+
+        {currentView === 'settings' && (
+          <SettingsPage />
         )}
         </div>
       </main>
