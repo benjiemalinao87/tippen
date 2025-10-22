@@ -11,6 +11,7 @@ import {
   handleUpdateApiKey,
   handleDeleteApiKey
 } from './apiKeyHandlers';
+import { saveVisitorToD1 } from './visitorStorage';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -126,6 +127,14 @@ async function handleVisitorTracking(
         website: data.website,
       }),
     });
+
+    // Save visitor to D1 database
+    try {
+      await saveVisitorToD1(env, apiKey, enrichedVisitor, data.website, data.event);
+    } catch (error) {
+      console.error('[Tippen] Failed to save visitor to D1:', error);
+      // Continue anyway - don't fail the request if D1 save fails
+    }
 
     return new Response(
       JSON.stringify({

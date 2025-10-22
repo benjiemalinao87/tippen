@@ -104,9 +104,37 @@
   - Queryable and analyzable data
   - Scalable solution for multi-user
 
+### Visitor Data Persistence in D1
+- **Date**: October 22, 2025
+- **Status**: ✅ Completed & Deployed
+- **Description**: All visitor data now automatically saved to D1 database
+- **Features**:
+  - **Automatic Storage:** Every visitor tracked is saved to D1
+  - **Smart Updates:** INSERT for new, UPDATE for returning visitors
+  - **Page View Tracking:** Increments page_views on each visit
+  - **API Usage Tracking:** Updates api_keys.usage_count
+  - **Analytics Ready:** Can query historical data
+  - **Deduplication:** Prevents duplicate visitor records
+- **Files Created:**
+  - `cloudflare-backend/src/visitorStorage.ts` - Visitor storage functions
+  - `VISITOR_STORAGE_D1.md` - Complete documentation
+- **Data Tracked:**
+  - Visitor ID, Company, Location, Role
+  - First seen, Last seen timestamps
+  - Page views count
+  - Total time on site
+  - Website domain
+- **Benefits:**
+  - Historical analytics
+  - Visitor profiles over time
+  - Multi-user support per API key
+  - Fast indexed queries
+
 ## Next Steps
-- Build API key management UI in dashboard (list, revoke, view usage)
-- Add usage tracking when visitors use API keys
+- Build visitor management UI in dashboard (list, filter, search)
+- Add visitor analytics dashboard (charts, top companies, trends)
+- Build API key management UI (list, revoke, view usage)
+- Add time tracking for total_time_seconds
 - Implement authentication for API endpoints
 - Test integration functionality with real Slack workspace
 - Add actual API connections for other integrations (Salesforce, HubSpot, etc.)
