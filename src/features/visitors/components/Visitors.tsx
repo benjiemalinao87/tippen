@@ -252,6 +252,35 @@ export function Visitors() {
           console.error('Failed to send video invite:', error);
         }
 
+        // Save video session details to D1 database
+        try {
+          const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') || 
+                           'https://tippen-backend.benjiemalinao879557.workers.dev';
+          const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+          
+          await fetch(`${backendUrl}/api/visitors/video-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              apiKey,
+              visitorId: visitor.visitorId,
+              videoData: {
+                sessionId: data.sessionId,
+                roomId: data.roomId,
+                hostUrl: data.urls.host,
+                guestUrl: data.urls.guest
+              },
+              status: 'invited'
+            })
+          });
+          console.log('Video session saved to D1');
+        } catch (error) {
+          console.error('Failed to save video session to D1:', error);
+          // Continue anyway - video session still works
+        }
+
         // Send Slack notification about video call request
         if (slackService.isEnabled()) {
           await slackService.sendVideoCallRequestNotification({

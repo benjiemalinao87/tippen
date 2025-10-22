@@ -20,7 +20,7 @@ export async function saveVisitorToD1(
   try {
     // Check if visitor already exists
     const existing = await env.DB.prepare(
-      `SELECT id, page_views, total_time_seconds FROM visitor_sessions 
+      `SELECT id, page_views, total_time_seconds FROM visitors 
        WHERE api_key = ? AND visitor_id = ?`
     )
       .bind(apiKey, visitor.visitorId)
@@ -29,7 +29,7 @@ export async function saveVisitorToD1(
     if (existing) {
       // Update existing visitor
       await env.DB.prepare(
-        `UPDATE visitor_sessions 
+        `UPDATE visitors 
          SET last_seen_at = CURRENT_TIMESTAMP,
              page_views = page_views + 1,
              company = ?,
@@ -51,7 +51,7 @@ export async function saveVisitorToD1(
     } else {
       // Insert new visitor
       await env.DB.prepare(
-        `INSERT INTO visitor_sessions 
+        `INSERT INTO visitors 
          (api_key, visitor_id, company, location, last_role, website, page_views, first_seen_at, last_seen_at)
          VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
@@ -67,17 +67,22 @@ export async function saveVisitorToD1(
 
       console.log(`[D1] Inserted new visitor ${visitor.visitorId} from ${visitor.company || 'Unknown'}`);
       
-      // Also update the API key usage count
-      await env.DB.prepare(
-        `UPDATE api_keys 
-         SET usage_count = usage_count + 1,
-             last_used_at = CURRENT_TIMESTAMP
-         WHERE api_key = ?`
-      )
-        .bind(apiKey)
-        .run();
+      // Try to update API key usage count (but don't fail if API key doesn't exist)
+      try {
+        await env.DB.prepare(
+          `UPDATE api_keys 
+           SET usage_count = usage_count + 1,
+               last_used_at = CURRENT_TIMESTAMP
+           WHERE api_key = ?`
+        )
+          .bind(apiKey)
+          .run();
 
-      console.log(`[D1] Updated API key usage count for ${apiKey}`);
+        console.log(`[D1] Updated API key usage count for ${apiKey}`);
+      } catch (keyError) {
+        console.warn(`[D1] Could not update API key ${apiKey} - key may not exist in database`);
+        // Continue anyway - visitor data is more important
+      }
     }
   } catch (error) {
     console.error('[D1] Error saving visitor:', error);
@@ -96,7 +101,7 @@ export async function getVisitorsByApiKey(
 ): Promise<any> {
   try {
     const result = await env.DB.prepare(
-      `SELECT * FROM visitor_sessions 
+      `SELECT * FROM visitors 
        WHERE api_key = ? 
        ORDER BY last_seen_at DESC 
        LIMIT ? OFFSET ?`
@@ -127,8 +132,8 @@ export async function getVisitorStats(
          COUNT(DISTINCT visitor_id) as unique_visitors,
          SUM(page_views) as total_page_views,
          SUM(total_time_seconds) as total_time_seconds,
-         COUNT(*) as total_sessions
-       FROM visitor_sessions 
+         COUNT(*) as total_visits
+       FROM visitors 
        WHERE api_key = ?`
     )
       .bind(apiKey)
@@ -151,7 +156,7 @@ export async function getRecentVisitors(
 ): Promise<any> {
   try {
     const result = await env.DB.prepare(
-      `SELECT * FROM visitor_sessions 
+      `SELECT * FROM visitors 
        WHERE api_key = ? 
          AND last_seen_at >= datetime('now', '-${hours} hours')
        ORDER BY last_seen_at DESC`
@@ -165,6 +170,53 @@ export async function getRecentVisitors(
     };
   } catch (error) {
     console.error('[D1] Error fetching recent visitors:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update visitor video session status with full details
+ */
+export async function updateVisitorVideoStatus(
+  env: Env,
+  apiKey: string,
+  visitorId: string,
+  videoData: {
+    sessionId: string;
+    roomId: string;
+    hostUrl: string;
+    guestUrl: string;
+  },
+  status: 'invited' | 'accepted' | 'declined' | 'completed'
+): Promise<void> {
+  try {
+    const updateFields: string[] = ['video_status = ?'];
+    const params: any[] = [status];
+
+    if (status === 'invited') {
+      updateFields.push('video_invited_at = CURRENT_TIMESTAMP');
+      updateFields.push('video_session_id = ?');
+      updateFields.push('video_room_id = ?');
+      updateFields.push('video_host_url = ?');
+      updateFields.push('video_guest_url = ?');
+      params.push(videoData.sessionId, videoData.roomId, videoData.hostUrl, videoData.guestUrl);
+    } else if (status === 'accepted') {
+      updateFields.push('video_accepted_at = CURRENT_TIMESTAMP');
+    }
+
+    params.push(apiKey, visitorId);
+
+    await env.DB.prepare(
+      `UPDATE visitors 
+       SET ${updateFields.join(', ')}
+       WHERE api_key = ? AND visitor_id = ?`
+    )
+      .bind(...params)
+      .run();
+
+    console.log(`[D1] Updated video status for ${visitorId}: ${status}`);
+  } catch (error) {
+    console.error('[D1] Error updating video status:', error);
     throw error;
   }
 }

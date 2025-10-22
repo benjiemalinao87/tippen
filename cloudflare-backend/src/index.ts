@@ -11,7 +11,7 @@ import {
   handleUpdateApiKey,
   handleDeleteApiKey
 } from './apiKeyHandlers';
-import { saveVisitorToD1 } from './visitorStorage';
+import { saveVisitorToD1, updateVisitorVideoStatus } from './visitorStorage';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -80,6 +80,11 @@ export default {
     // Route: Delete API key
     if (url.pathname.startsWith('/api/keys/') && request.method === 'DELETE') {
       return handleDeleteApiKey(request, env, corsHeaders, url);
+    }
+
+    // Route: Update visitor video status
+    if (url.pathname === '/api/visitors/video-status' && request.method === 'POST') {
+      return handleUpdateVideoStatus(request, env, corsHeaders);
     }
 
     return new Response('Tippen API', { status: 200 });
@@ -304,6 +309,40 @@ async function handleSendVideoInvite(
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+/**
+ * Update visitor video session status
+ */
+async function handleUpdateVideoStatus(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const data = await request.json() as any;
+    const { apiKey, visitorId, videoData, status } = data;
+
+    if (!apiKey || !visitorId || !videoData || !status) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    await updateVisitorVideoStatus(env, apiKey, visitorId, videoData, status);
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error updating video status:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
