@@ -4,10 +4,18 @@
  */
 
 import { VisitorCoordinator } from './VisitorCoordinator';
+import {
+  handleCreateApiKey,
+  handleGetApiKeys,
+  handleGetApiKey,
+  handleUpdateApiKey,
+  handleDeleteApiKey
+} from './apiKeyHandlers';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
   CLEARBIT_API_KEY: string;
+  DB: D1Database;
 }
 
 // Export Durable Object
@@ -46,6 +54,31 @@ export default {
     // Route: Send video invite to visitor
     if (url.pathname === '/api/send-video-invite' && request.method === 'POST') {
       return handleSendVideoInvite(request, env, corsHeaders);
+    }
+
+    // Route: Create/Save API key
+    if (url.pathname === '/api/keys' && request.method === 'POST') {
+      return handleCreateApiKey(request, env, corsHeaders);
+    }
+
+    // Route: Get API keys (list all)
+    if (url.pathname === '/api/keys' && request.method === 'GET') {
+      return handleGetApiKeys(request, env, corsHeaders);
+    }
+
+    // Route: Get single API key
+    if (url.pathname.startsWith('/api/keys/') && request.method === 'GET') {
+      return handleGetApiKey(request, env, corsHeaders, url);
+    }
+
+    // Route: Update API key
+    if (url.pathname.startsWith('/api/keys/') && request.method === 'PUT') {
+      return handleUpdateApiKey(request, env, corsHeaders, url);
+    }
+
+    // Route: Delete API key
+    if (url.pathname.startsWith('/api/keys/') && request.method === 'DELETE') {
+      return handleDeleteApiKey(request, env, corsHeaders, url);
     }
 
     return new Response('Tippen API', { status: 200 });

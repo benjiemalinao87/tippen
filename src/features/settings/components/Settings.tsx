@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Database, MessageSquare, Check, ExternalLink, Code, Copy } from 'lucide-react';
+import { Settings as SettingsIcon, Database, MessageSquare, Check, ExternalLink, Code, Copy, RefreshCw } from 'lucide-react';
 import { SlackConfigModal } from './SlackConfigModal';
 import { slackService } from '../../../services/slackService';
 
@@ -71,7 +71,9 @@ export function Settings() {
   const [slackConfig, setSlackConfig] = useState<{ webhookUrl: string; channelName: string } | null>(null);
   const [copiedScript, setCopiedScript] = useState(false);
   const [apiKey, setApiKey] = useState('your_api_key_here');
-  const [backendUrl, setBackendUrl] = useState('https://tippen-backend.workers.dev');
+  const [backendUrl, setBackendUrl] = useState('https://tippen-backend.benjiemalinao879557.workers.dev');
+  const [keyType, setKeyType] = useState<'client' | 'demo' | 'test'>('client');
+  const [clientName, setClientName] = useState('');
 
   useEffect(() => {
     // Load Slack configuration on mount
@@ -86,6 +88,17 @@ export function Settings() {
             : integration
         )
       );
+    }
+
+    // Load saved API key and backend URL
+    const savedApiKey = localStorage.getItem('tippen_api_key');
+    const savedBackendUrl = localStorage.getItem('tippen_backend_url');
+    
+    if (savedApiKey) {
+      setApiKey(savedApiKey);
+    }
+    if (savedBackendUrl) {
+      setBackendUrl(savedBackendUrl);
     }
   }, []);
 
@@ -129,6 +142,80 @@ export function Settings() {
           : integration
       )
     );
+  };
+
+  const generateApiKey = async () => {
+    const randomString = () => {
+      return Math.random().toString(36).substring(2, 15) + 
+             Math.random().toString(36).substring(2, 15);
+    };
+    
+    const timestamp = Date.now();
+    const cleanName = clientName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .substring(0, 20);
+    
+    let newApiKey;
+    
+    switch (keyType) {
+      case 'demo':
+        newApiKey = `demo_tippen_2025_${randomString().substring(0, 16)}`;
+        break;
+      
+      case 'test':
+        newApiKey = `test_${timestamp}_${randomString().substring(0, 12)}`;
+        break;
+      
+      case 'client':
+        if (cleanName) {
+          newApiKey = `client_${cleanName}_${timestamp}_${randomString().substring(0, 8)}`;
+        } else {
+          newApiKey = `client_${timestamp}_${randomString().substring(0, 16)}`;
+        }
+        break;
+      
+      default:
+        newApiKey = `client_${timestamp}_${randomString().substring(0, 16)}`;
+    }
+    
+    setApiKey(newApiKey);
+    
+    // Save to both localStorage and D1 database
+    localStorage.setItem('tippen_api_key', newApiKey);
+    
+    try {
+      // Save to D1 database via API
+      await fetch(`${backendUrl}/api/keys`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey: newApiKey,
+          keyType,
+          clientName: clientName || null,
+          backendUrl,
+          notes: `Generated from dashboard on ${new Date().toISOString()}`
+        })
+      });
+      console.log('API key saved to D1 database');
+    } catch (error) {
+      console.error('Failed to save API key to database:', error);
+      // Continue anyway - localStorage fallback
+    }
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    // Save to localStorage whenever user types
+    localStorage.setItem('tippen_api_key', value);
+  };
+
+  const handleBackendUrlChange = (value: string) => {
+    setBackendUrl(value);
+    // Save to localStorage whenever user types
+    localStorage.setItem('tippen_backend_url', value);
   };
 
   const trackingScript = `<script
@@ -175,6 +262,55 @@ export function Settings() {
           </div>
         </div>
 
+        {/* API Key Generator */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800 p-4 mb-6">
+          <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-3 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Generate API Key
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+            <div>
+              <label className="block text-xs font-medium text-purple-800 dark:text-purple-200 mb-2">
+                Key Type
+              </label>
+              <select
+                value={keyType}
+                onChange={(e) => setKeyType(e.target.value as 'client' | 'demo' | 'test')}
+                className="w-full px-3 py-2 text-sm border border-purple-300 dark:border-purple-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="client">Client (Production)</option>
+                <option value="demo">Demo (Testing)</option>
+                <option value="test">Test (Internal)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-purple-800 dark:text-purple-200 mb-2">
+                Client Name {keyType === 'client' ? '' : '(Optional)'}
+              </label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="e.g., Acme Corporation"
+                disabled={keyType !== 'client'}
+                className="w-full px-3 py-2 text-sm border border-purple-300 dark:border-purple-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={generateApiKey}
+                className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Generate Key
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-purple-700 dark:text-purple-300">
+            💡 Click "Generate Key" to create a unique API key for your client
+          </p>
+        </div>
+
         {/* Configuration Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
@@ -188,6 +324,9 @@ export function Settings() {
               placeholder="your_api_key_here"
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm"
             />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Generated key will appear here, or enter your own
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

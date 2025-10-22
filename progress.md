@@ -47,9 +47,67 @@
   - useRef pattern for visitor detection
   - Full TypeScript type safety
 
+### Tracking Script in Settings with API Key Generator
+- **Date**: October 22, 2025
+- **Status**: ✅ Completed
+- **Description**: Added tracking script section with built-in API key generator to Settings page
+- **Features**:
+  - **API Key Generator:**
+    - Generate Client, Demo, or Test keys
+    - Optional client name for production keys
+    - Instant key generation with one click
+    - Keys follow standard format (client_name_timestamp_random)
+  - **Script Generation:**
+    - Customizable API key and backend URL inputs
+    - Live script generation with custom values
+    - One-click copy to clipboard functionality
+    - Generated keys auto-populate in script
+  - **Instructions & Guidance:**
+    - Clear step-by-step installation instructions
+    - Explanation of what the script does
+    - Platform-specific guide references (WordPress, Shopify, etc.)
+    - Beautiful code block with syntax highlighting
+    - Purple-themed UI to distinguish from integrations
+- **Files Modified**:
+  - `src/features/settings/components/Settings.tsx` - Added API key generator and tracking script section
+- **Benefits**:
+  - **No External Tools Needed:** Generate API keys directly in the dashboard
+  - **Easy Workflow:** Generate key → Copy script → Install on website
+  - **Professional:** Follows API key format standards
+  - **Flexible:** Can manually edit keys or backend URLs
+  - **User-Friendly:** All tools in one place
+
+### D1 Database for API Key Persistence
+- **Date**: October 22, 2025
+- **Status**: ✅ Completed & Deployed
+- **Description**: Implemented D1 database for persistent API key storage
+- **Features**:
+  - **Database:** `tippen-db` (ID: 4bce4fdf-e8a2-43f4-8456-366a24cfb0a7)
+  - **Tables:** `api_keys` and `visitor_sessions`
+  - **Full CRUD API:** Create, Read, Update, Delete endpoints
+  - **Dual Persistence:** localStorage (fast) + D1 (persistent)
+  - **Status Management:** active, inactive, revoked
+  - **Audit Trail:** Tracks creation, updates, usage
+  - **Soft Deletes:** Revoke instead of hard delete
+- **Files Created:**
+  - `cloudflare-backend/schema.sql` - Database schema
+  - `cloudflare-backend/src/apiKeyHandlers.ts` - CRUD handlers
+  - `D1_DATABASE_SETUP.md` - Complete documentation
+- **Deployment:**
+  - ✅ Database created and schema executed
+  - ✅ Worker deployed with D1 bindings
+  - ✅ API tested and working
+  - ✅ Frontend integrated
+- **Benefits:**
+  - API keys persist across browser sessions
+  - Can manage keys from any device
+  - Queryable and analyzable data
+  - Scalable solution for multi-user
+
 ## Next Steps
+- Build API key management UI in dashboard (list, revoke, view usage)
+- Add usage tracking when visitors use API keys
+- Implement authentication for API endpoints
 - Test integration functionality with real Slack workspace
 - Add actual API connections for other integrations (Salesforce, HubSpot, etc.)
 - Implement Teams and Google Chat integrations
-- Add integration analytics and logging
-- Consider adding webhook signature verification for security
