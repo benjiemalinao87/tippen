@@ -336,13 +336,14 @@ await sendVideoInvite(visitorId, guestUrl);
 
 ### Customer Connect Video API
 
-**Endpoint**: `https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session`
+**Endpoint**: `https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session`
 
 **Request**:
 ```typescript
 {
   hostName: "Tippen Agent",
-  guestName: "Company Name"
+  guestName: "Company Name",
+  isAdmin: true
 }
 ```
 
@@ -350,23 +351,24 @@ await sendVideoInvite(visitorId, guestUrl);
 ```typescript
 {
   success: true,
-  sessionId: "demo_xxx",
-  roomId: "uuid",
+  sessionId: "vc_1761130191378_03i6oy",
+  roomId: "bbb349e5-ceb3-4cea-bca7-5a9b0407ef61",
   urls: {
-    host: "https://app.customerconnect.live/public/demo/host/...",
-    guest: "https://app.customerconnect.live/public/demo/guest/..."
+    host: "https://app.customerconnect.live/public/video-connect/host/vc_1761130191378_03i6oy?roomId=bbb349e5-ceb3-4cea-bca7-5a9b0407ef61&hostName=Tippen%20Agent&isAdmin=true",
+    guest: "https://app.customerconnect.live/public/video-connect/guest/vc_1761130191378_03i6oy?roomId=bbb349e5-ceb3-4cea-bca7-5a9b0407ef61&guestName=Company%20Name&isAdmin=true"
   }
 }
 ```
 
 **Usage**:
 ```tsx
-const response = await fetch('https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session', {
+const response = await fetch('https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     hostName: 'Tippen Agent',
-    guestName: visitor.company
+    guestName: visitor.company,
+    isAdmin: true
   })
 });
 ```

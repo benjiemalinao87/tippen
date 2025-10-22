@@ -759,7 +759,7 @@ curl -X POST http://localhost:8787/api/send-video-invite \
 
 ### 4. Customer Connect Video API (Third-Party)
 
-**Endpoint:** `POST https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session`
+**Endpoint:** `POST https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session`
 
 **Purpose:** Create video session for admin and visitor
 
@@ -772,7 +772,8 @@ Content-Type: application/json
 ```json
 {
   "hostName": "Tippen Agent",
-  "guestName": "Acme Corporation"
+  "guestName": "Acme Corporation",
+  "isAdmin": true
 }
 ```
 
@@ -780,11 +781,11 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "sessionId": "demo_abc123xyz",
-  "roomId": "550e8400-e29b-41d4-a716-446655440000",
+  "sessionId": "vc_1761130191378_03i6oy",
+  "roomId": "bbb349e5-ceb3-4cea-bca7-5a9b0407ef61",
   "urls": {
-    "host": "https://app.customerconnect.live/public/demo/host/abc123",
-    "guest": "https://app.customerconnect.live/public/demo/guest/abc123"
+    "host": "https://app.customerconnect.live/public/video-connect/host/vc_1761130191378_03i6oy?roomId=bbb349e5-ceb3-4cea-bca7-5a9b0407ef61&hostName=Tippen%20Agent&isAdmin=true",
+    "guest": "https://app.customerconnect.live/public/video-connect/guest/vc_1761130191378_03i6oy?roomId=bbb349e5-ceb3-4cea-bca7-5a9b0407ef61&guestName=Acme%20Corporation&isAdmin=true"
   }
 }
 ```
@@ -795,7 +796,7 @@ Content-Type: application/json
 # Postman Request Configuration
 
 Method: POST
-URL: https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session
+URL: https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session
 
 Headers:
   Content-Type: application/json
@@ -803,15 +804,17 @@ Headers:
 Body (raw JSON):
 {
   "hostName": "Tippen Agent",
-  "guestName": "Acme Corporation"
+  "guestName": "Acme Corporation",
+  "isAdmin": true
 }
 
 # cURL equivalent:
-curl -X POST https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session \
+curl -X POST https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session \
   -H "Content-Type: application/json" \
   -d '{
     "hostName": "Tippen Agent",
-    "guestName": "Acme Corporation"
+    "guestName": "Acme Corporation",
+    "isAdmin": true
   }'
 ```
 

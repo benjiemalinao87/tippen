@@ -131,14 +131,15 @@ export function Visitors() {
 
       try {
         // Call the API to create a session
-        const response = await fetch('https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/demo/create-session', {
+        const response = await fetch('https://dev-platform-api-dev.benjiemalinao879557.workers.dev/public/video-connect/create-session', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             hostName: 'Tippen Agent',
-            guestName: visitor.company
+            guestName: visitor.company,
+            isAdmin: true
           })
         });
 
