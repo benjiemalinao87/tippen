@@ -24,6 +24,7 @@ import {
   handleLogout
 } from './auth';
 import { TRACKING_SCRIPT } from './trackingScript';
+import { getSlackConfig, saveSlackConfig, sendNewVisitorNotification } from './slack';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -139,6 +140,16 @@ export default {
       return handleGetTrackingScript(corsHeaders);
     }
 
+    // Route: Save Slack configuration
+    if (url.pathname === '/api/slack/config' && request.method === 'POST') {
+      return handleSaveSlackConfig(request, env, corsHeaders);
+    }
+
+    // Route: Get Slack configuration
+    if (url.pathname === '/api/slack/config' && request.method === 'GET') {
+      return handleGetSlackConfig(request, env, corsHeaders);
+    }
+
     return new Response('Tippen API', { status: 200 });
   },
 };
@@ -185,12 +196,50 @@ async function handleVisitorTracking(
       }),
     });
 
+    // Check if this is a NEW visitor (first time seeing them)
+    let isNewVisitor = false;
+    try {
+      const existingVisitor = await env.DB
+        .prepare('SELECT visitor_id FROM visitors WHERE visitor_id = ? AND api_key = ?')
+        .bind(enrichedVisitor.visitorId, apiKey)
+        .first();
+
+      isNewVisitor = !existingVisitor;
+    } catch (error) {
+      console.error('[Tippen] Failed to check if visitor exists:', error);
+    }
+
     // Save visitor to D1 database
     try {
       await saveVisitorToD1(env, apiKey, enrichedVisitor, data.website, data.event);
     } catch (error) {
       console.error('[Tippen] Failed to save visitor to D1:', error);
       // Continue anyway - don't fail the request if D1 save fails
+    }
+
+    // Send Slack notification for ALL visitors (new and returning - for demo purposes)
+    // TODO: In production, change this to only notify for new visitors (if (isNewVisitor))
+    try {
+      const slackConfig = await getSlackConfig(env.DB, apiKey);
+
+      if (slackConfig && slackConfig.enabled) {
+        const visitorType = isNewVisitor ? '🆕 New' : '🔄 Returning';
+        console.log(`[Tippen] Sending Slack notification for ${visitorType} visitor:`, enrichedVisitor.company);
+
+        await sendNewVisitorNotification(slackConfig.webhookUrl, {
+          company: `${visitorType} - ${enrichedVisitor.company || 'Unknown Company'}`,
+          location: enrichedVisitor.location,
+          revenue: enrichedVisitor.revenue,
+          staff: enrichedVisitor.staff,
+          lastRole: enrichedVisitor.lastRole,
+          timestamp: new Date().toLocaleString()
+        });
+
+        console.log('[Tippen] Slack notification sent successfully');
+      }
+    } catch (error) {
+      console.error('[Tippen] Failed to send Slack notification:', error);
+      // Don't fail the request if Slack fails
     }
 
     return new Response(
@@ -639,4 +688,75 @@ function handleGetTrackingScript(corsHeaders: Record<string, string>): Response 
       'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
     }
   });
+}
+
+/**
+ * Handle saving Slack configuration
+ */
+async function handleSaveSlackConfig(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const { apiKey, webhookUrl, channelName, enabled } = await request.json() as any;
+
+    if (!apiKey || !webhookUrl) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'API key and webhook URL required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const success = await saveSlackConfig(env.DB, apiKey, {
+      webhookUrl,
+      channelName: channelName || '',
+      enabled: enabled !== false
+    });
+
+    return new Response(
+      JSON.stringify({ success }),
+      { status: success ? 200 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error saving Slack config:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle getting Slack configuration
+ */
+async function handleGetSlackConfig(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    const apiKey = url.searchParams.get('api_key');
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'API key required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const config = await getSlackConfig(env.DB, apiKey);
+
+    return new Response(
+      JSON.stringify({ success: true, config }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error getting Slack config:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
 }

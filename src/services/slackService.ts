@@ -34,9 +34,41 @@ class SlackService {
     }
   }
 
-  public setConfig(webhookUrl: string, channelName: string, enabled: boolean = true) {
+  public async setConfig(webhookUrl: string, channelName: string, enabled: boolean = true) {
     this.config = { webhookUrl, channelName, enabled };
     localStorage.setItem('slack_config', JSON.stringify(this.config));
+
+    // Sync with backend
+    try {
+      const userStr = localStorage.getItem('tippen_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.apiKey) {
+          const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
+            ?.replace('ws://', 'http://')
+            .replace('wss://', 'https://')
+            .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+
+          await fetch(`${backendUrl}/api/slack/config`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              apiKey: user.apiKey,
+              webhookUrl,
+              channelName,
+              enabled
+            })
+          });
+
+          console.log('[Slack] Config synced with backend');
+        }
+      }
+    } catch (error) {
+      console.error('[Slack] Failed to sync config with backend:', error);
+      // Don't fail if backend sync fails
+    }
   }
 
   public getConfig(): SlackConfig | null {
