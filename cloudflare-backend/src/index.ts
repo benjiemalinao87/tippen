@@ -121,6 +121,11 @@ export default {
       return handleGetVisitorAnalytics(request, env, corsHeaders, url);
     }
 
+    // Route: Get video sessions history
+    if (url.pathname === '/api/analytics/video-sessions' && request.method === 'GET') {
+      return handleGetVideoSessions(request, env, corsHeaders, url);
+    }
+
     // Route: User signup
     if (url.pathname === '/api/auth/signup' && request.method === 'POST') {
       return handleSignupRequest(request, env, corsHeaders);
@@ -645,6 +650,76 @@ async function handleGetVisitorAnalytics(
     );
   } catch (error: any) {
     console.error('Error fetching visitor analytics:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle get video sessions history request
+ */
+async function handleGetVideoSessions(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const status = url.searchParams.get('status') as string | undefined;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Build query
+    let query = `
+      SELECT
+        id,
+        visitor_id,
+        session_id,
+        company,
+        visitor_role,
+        status,
+        invited_at,
+        connected_at,
+        ended_at,
+        duration_seconds,
+        connection_time_seconds,
+        is_qualified_lead,
+        lead_quality_score
+      FROM video_calls
+      WHERE api_key = ?
+    `;
+
+    const params: any[] = [apiKey];
+
+    if (status) {
+      query += ` AND status = ?`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY invited_at DESC LIMIT ?`;
+    params.push(limit);
+
+    const result = await env.DB.prepare(query).bind(...params).all();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        sessions: result.results || [],
+        total: result.results?.length || 0
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching video sessions:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
