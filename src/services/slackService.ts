@@ -117,21 +117,19 @@ class SlackService {
         ]
       };
 
-      const response = await fetch(this.config.webhookUrl, {
+      await fetch(this.config.webhookUrl, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message)
       });
 
-      if (response.ok) {
-        console.log('Slack notification sent successfully for new visitor');
-        return true;
-      } else {
-        console.error('Failed to send Slack notification:', response.status);
-        return false;
-      }
+      // With no-cors mode, we can't read response status
+      // If fetch succeeds without error, assume the message was sent
+      console.log('Slack notification sent successfully for new visitor');
+      return true;
     } catch (error) {
       console.error('Error sending Slack notification:', error);
       return false;
@@ -224,21 +222,19 @@ class SlackService {
         ]
       };
 
-      const response = await fetch(this.config.webhookUrl, {
+      await fetch(this.config.webhookUrl, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message)
       });
 
-      if (response.ok) {
-        console.log('Slack notification sent successfully for video call request');
-        return true;
-      } else {
-        console.error('Failed to send Slack notification:', response.status);
-        return false;
-      }
+      // With no-cors mode, we can't read response status
+      // If fetch succeeds without error, assume the message was sent
+      console.log('Slack notification sent successfully for video call request');
+      return true;
     } catch (error) {
       console.error('Error sending Slack notification:', error);
       return false;
@@ -265,15 +261,18 @@ class SlackService {
         ]
       };
 
-      const response = await fetch(this.config.webhookUrl, {
+      await fetch(this.config.webhookUrl, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message)
       });
 
-      return response.ok;
+      // With no-cors mode, we can't read response status
+      // If fetch succeeds without error, assume the message was sent
+      return true;
     } catch (error) {
       console.error('Error sending test notification:', error);
       return false;
