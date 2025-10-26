@@ -39,8 +39,19 @@ export interface AuthResponse {
     role: string;
     organizationId: number;
     organizationName: string;
+    apiKey: string;  // ← API key for multi-tenant isolation
   };
   error?: string;
+}
+
+/**
+ * Generate unique API key for organization
+ */
+function generateApiKey(): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 15);
+  const random2 = Math.random().toString(36).substring(2, 15);
+  return `tippen_${timestamp}_${random}${random2}`;
 }
 
 /**
@@ -112,24 +123,45 @@ export async function handleSignup(
     // Hash password
     const passwordHash = await hashPassword(request.password);
 
+    // Generate unique API key for this organization
+    const apiKey = generateApiKey();
+
+    // Generate organization slug from company name
+    const slug = request.companyName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
     // Create organization first
     const orgResult = await db.prepare(
       `INSERT INTO organizations
-       (name, staff_count, revenue, industry, website, referral_source, use_case)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+       (name, slug, staff_count, revenue_range, industry, website, referral_source, use_case, api_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         request.companyName,
+        slug,
         request.staffCount || null,
         request.revenue || null,
         request.industry || null,
         request.website || null,
         request.referralSource || null,
-        request.useCase || null
+        request.useCase || null,
+        apiKey  // ← Link API key to organization
       )
       .run();
 
     const organizationId = orgResult.meta.last_row_id;
+
+    // Create API key record in api_keys table
+    await db.prepare(
+      `INSERT INTO api_keys (api_key, name, is_active, created_at)
+       VALUES (?, ?, 1, CURRENT_TIMESTAMP)`
+    )
+      .bind(apiKey, `${request.companyName} - Default Key`)
+      .run();
+
+    console.log(`[Auth] Created organization "${request.companyName}" with API key: ${apiKey}`);
 
     // Create user as admin of organization
     const userResult = await db.prepare(
@@ -183,7 +215,8 @@ export async function handleSignup(
         lastName: request.lastName,
         role: 'admin',
         organizationId,
-        organizationName: request.companyName
+        organizationName: request.companyName,
+        apiKey  // ← Include API key in response
       }
     };
   } catch (error) {
@@ -211,9 +244,9 @@ export async function handleLogin(
       };
     }
 
-    // Find user
+    // Find user with organization API key
     const user = await db.prepare(
-      `SELECT u.*, o.name as organization_name
+      `SELECT u.*, o.name as organization_name, o.api_key
        FROM users u
        JOIN organizations o ON u.organization_id = o.id
        WHERE u.email = ? AND u.status = 'active'`
@@ -280,7 +313,8 @@ export async function handleLogin(
         lastName: user.last_name,
         role: user.role,
         organizationId: user.organization_id,
-        organizationName: user.organization_name
+        organizationName: user.organization_name,
+        apiKey: user.api_key  // ← Include API key in login response
       }
     };
   } catch (error) {
@@ -302,7 +336,7 @@ export async function verifySession(
   try {
     const session = await db.prepare(
       `SELECT s.*, u.email, u.first_name, u.last_name, u.role, u.organization_id,
-              o.name as organization_name
+              o.name as organization_name, o.api_key
        FROM sessions s
        JOIN users u ON s.user_id = u.id
        JOIN organizations o ON u.organization_id = o.id
@@ -330,7 +364,8 @@ export async function verifySession(
         lastName: session.last_name,
         role: session.role,
         organizationId: session.organization_id,
-        organizationName: session.organization_name
+        organizationName: session.organization_name,
+        apiKey: session.api_key  // ← Include API key in verification
       }
     };
   } catch (error) {

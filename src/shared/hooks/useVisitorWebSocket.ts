@@ -31,7 +31,22 @@ interface UseVisitorWebSocketReturn {
 }
 
 const WEBSOCKET_URL = import.meta.env.VITE_VISITOR_WS_URL || 'ws://localhost:8787/ws/dashboard';
-const API_KEY = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+
+/**
+ * Get API key from authenticated user
+ */
+function getUserApiKey(): string | null {
+  try {
+    const userStr = localStorage.getItem('tippen_user');
+    if (!userStr) return null;
+
+    const user = JSON.parse(userStr);
+    return user.apiKey || null;
+  } catch (error) {
+    console.error('[WebSocket] Failed to get user API key:', error);
+    return null;
+  }
+}
 
 export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
@@ -47,11 +62,19 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
       return;
     }
 
-    console.log('[WebSocket] Connecting to:', `${WEBSOCKET_URL}?apiKey=${API_KEY}`);
+    // Get user's API key from localStorage
+    const apiKey = getUserApiKey();
+    if (!apiKey) {
+      console.error('[WebSocket] No API key found for user');
+      setConnectionStatus('error');
+      return;
+    }
+
+    console.log('[WebSocket] Connecting to:', `${WEBSOCKET_URL}?apiKey=${apiKey}`);
     setConnectionStatus('connecting');
 
     try {
-      const ws = new WebSocket(`${WEBSOCKET_URL}?apiKey=${API_KEY}`);
+      const ws = new WebSocket(`${WEBSOCKET_URL}?apiKey=${apiKey}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -167,13 +190,19 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
 
   const sendVideoInvite = useCallback(async (visitorId: string, guestUrl: string): Promise<void> => {
     try {
+      // Get user's API key
+      const apiKey = getUserApiKey();
+      if (!apiKey) {
+        throw new Error('No API key found for user');
+      }
+
       const response = await fetch(`${WEBSOCKET_URL.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '')}/api/send-video-invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          apiKey: API_KEY,
+          apiKey,  // ← Use user's API key for multi-tenant isolation
           visitorId,
           guestUrl,
         }),

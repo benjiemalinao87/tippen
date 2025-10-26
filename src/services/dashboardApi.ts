@@ -5,7 +5,29 @@
 
 const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
                     'https://tippen-backend.benjiemalinao879557.workers.dev';
-const API_KEY = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+
+/**
+ * Get API key from authenticated user
+ */
+function getUserApiKey(): string {
+  try {
+    const userStr = localStorage.getItem('tippen_user');
+    if (!userStr) {
+      throw new Error('No user found in localStorage');
+    }
+
+    const user = JSON.parse(userStr);
+    if (!user.apiKey) {
+      throw new Error('No API key found for user');
+    }
+
+    return user.apiKey;
+  } catch (error) {
+    console.error('[Dashboard API] Failed to get user API key:', error);
+    // Fallback to env variable for backwards compatibility
+    return import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+  }
+}
 
 export interface DashboardMetrics {
   totalOutboundCalls: number;
@@ -36,8 +58,9 @@ export interface CallVolumeData {
  */
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   try {
+    const apiKey = getUserApiKey();
     const response = await fetch(
-      `${BACKEND_URL}/api/analytics/dashboard?api_key=${API_KEY}`
+      `${BACKEND_URL}/api/analytics/dashboard?api_key=${apiKey}`
     );
 
     if (!response.ok) {
@@ -65,8 +88,9 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
  */
 export async function getTopCompanies(limit: number = 10): Promise<TopCompany[]> {
   try {
+    const apiKey = getUserApiKey();
     const response = await fetch(
-      `${BACKEND_URL}/api/analytics/top-companies?api_key=${API_KEY}&limit=${limit}`
+      `${BACKEND_URL}/api/analytics/top-companies?api_key=${apiKey}&limit=${limit}`
     );
 
     if (!response.ok) {
@@ -86,8 +110,9 @@ export async function getTopCompanies(limit: number = 10): Promise<TopCompany[]>
  */
 export async function getCallVolume(days: number = 7): Promise<CallVolumeData[]> {
   try {
+    const apiKey = getUserApiKey();
     const response = await fetch(
-      `${BACKEND_URL}/api/analytics/call-volume?api_key=${API_KEY}&days=${days}`
+      `${BACKEND_URL}/api/analytics/call-volume?api_key=${apiKey}&days=${days}`
     );
 
     if (!response.ok) {
