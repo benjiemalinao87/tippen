@@ -219,7 +219,7 @@ export function Settings() {
   };
 
   const trackingScript = `<script
-  src="https://cdn.tippen.com/tippen-tracker.js"
+  src="${backendUrl}/tippen-tracker.js"
   data-tippen-api-key="${apiKey}"
   data-tippen-backend="${backendUrl}"
   async
