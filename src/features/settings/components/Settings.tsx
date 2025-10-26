@@ -65,7 +65,10 @@ const integrations: Integration[] = [
   }
 ];
 
+type SettingsTab = 'tracking' | 'integrations';
+
 export function Settings() {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('tracking');
   const [integrationsState, setIntegrationsState] = useState<Integration[]>(integrations);
   const [showSlackModal, setShowSlackModal] = useState(false);
   const [slackConfig, setSlackConfig] = useState<{ webhookUrl: string; channelName: string } | null>(null);
@@ -303,7 +306,34 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <button
+          onClick={() => setActiveTab('tracking')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'tracking'
+              ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+              : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          <Code className="w-4 h-4" />
+          Tracking Scripts
+        </button>
+        <button
+          onClick={() => setActiveTab('integrations')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'integrations'
+              ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+              : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          Integrations
+        </button>
+      </div>
+
       {/* Tracking Script Section */}
+      {activeTab === 'tracking' && (
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center gap-3 mb-6">
           <Code className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -496,8 +526,11 @@ export function Settings() {
           </div>
         </div>
       </div>
+      )}
 
       {/* CRM Integrations */}
+      {activeTab === 'integrations' && (
+      <>
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center gap-3 mb-6">
           <Database className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -649,6 +682,8 @@ export function Settings() {
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Slack Configuration Modal */}
       <SlackConfigModal
