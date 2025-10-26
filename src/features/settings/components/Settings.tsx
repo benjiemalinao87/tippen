@@ -77,49 +77,87 @@ export function Settings() {
   const [clientName, setClientName] = useState('');
 
   useEffect(() => {
-    // Load Slack configuration on mount
-    const config = slackService.getConfig();
-    if (config) {
-      setSlackConfig({ webhookUrl: config.webhookUrl, channelName: config.channelName });
-      // Update Slack integration status
-      setIntegrationsState(prev =>
-        prev.map(integration =>
-          integration.id === 'slack'
-            ? { ...integration, connected: config.enabled }
-            : integration
-        )
-      );
-    }
+    // Load configuration on mount
+    const loadConfig = async () => {
+      // Get user's organization API key from authenticated session
+      let userApiKey: string | null = null;
+      try {
+        const userStr = localStorage.getItem('tippen_user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          if (user.apiKey) {
+            userApiKey = user.apiKey;
+            // Store organization API key separately
+            setOrgApiKey(user.apiKey);
+            // Use organization API key as default for tracking script
+            setApiKey(user.apiKey);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user API key:', error);
+      }
 
-    // Get user's organization API key from authenticated session
-    try {
-      const userStr = localStorage.getItem('tippen_user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        if (user.apiKey) {
-          // Store organization API key separately
-          setOrgApiKey(user.apiKey);
-          // Use organization API key as default for tracking script
-          setApiKey(user.apiKey);
+      // Load Slack configuration from D1 database
+      if (userApiKey) {
+        try {
+          const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
+            ?.replace('ws://', 'http://')
+            .replace('wss://', 'https://')
+            .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+
+          const response = await fetch(`${backendUrl}/api/slack/config?api_key=${userApiKey}`);
+          const data = await response.json();
+
+          if (data.success && data.config) {
+            console.log('[Settings] Loaded Slack config from D1:', data.config);
+            setSlackConfig({ webhookUrl: data.config.webhookUrl, channelName: data.config.channelName });
+
+            // Update Slack integration status
+            setIntegrationsState(prev =>
+              prev.map(integration =>
+                integration.id === 'slack'
+                  ? { ...integration, connected: data.config.enabled }
+                  : integration
+              )
+            );
+
+            // Also update localStorage for offline fallback
+            localStorage.setItem('slack_config', JSON.stringify(data.config));
+          }
+        } catch (error) {
+          console.error('[Settings] Failed to load Slack config from backend:', error);
+
+          // Fallback to localStorage
+          const localConfig = slackService.getConfig();
+          if (localConfig) {
+            setSlackConfig({ webhookUrl: localConfig.webhookUrl, channelName: localConfig.channelName });
+            setIntegrationsState(prev =>
+              prev.map(integration =>
+                integration.id === 'slack'
+                  ? { ...integration, connected: localConfig.enabled }
+                  : integration
+              )
+            );
+          }
         }
       }
-    } catch (error) {
-      console.error('Failed to load user API key:', error);
-    }
 
-    // Load saved backend URL
-    const savedBackendUrl = localStorage.getItem('tippen_backend_url');
-    if (savedBackendUrl) {
-      setBackendUrl(savedBackendUrl);
-    }
+      // Load saved backend URL
+      const savedBackendUrl = localStorage.getItem('tippen_backend_url');
+      if (savedBackendUrl) {
+        setBackendUrl(savedBackendUrl);
+      }
+    };
+
+    loadConfig();
   }, []);
 
-  const toggleIntegration = (id: string) => {
+  const toggleIntegration = async (id: string) => {
     if (id === 'slack') {
       const slackIntegration = integrationsState.find(i => i.id === 'slack');
       if (slackIntegration?.connected) {
-        // Disconnect Slack
-        slackService.setConfig('', '', false);
+        // Disconnect Slack - save to D1 database
+        await slackService.setConfig('', '', false);
         setSlackConfig(null);
         setIntegrationsState(prev =>
           prev.map(integration =>
@@ -144,8 +182,11 @@ export function Settings() {
     }
   };
 
-  const handleSlackSave = (webhookUrl: string, channelName: string) => {
-    slackService.setConfig(webhookUrl, channelName, true);
+  const handleSlackSave = async (webhookUrl: string, channelName: string) => {
+    // Save to backend D1 database
+    await slackService.setConfig(webhookUrl, channelName, true);
+
+    // Update local state
     setSlackConfig({ webhookUrl, channelName });
     setIntegrationsState(prev =>
       prev.map(integration =>
