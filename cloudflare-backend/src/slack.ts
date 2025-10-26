@@ -171,12 +171,12 @@ export async function sendNewVisitorNotification(
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: '📹 Start Video Call',
+                text: '📹 Request Video Call',
                 emoji: true
               },
               style: 'primary',
               url: `https://tippen.pages.dev/visitors?visitorId=${data.visitorId}`,
-              action_id: 'start_video_call'
+              action_id: 'request_video_call'
             },
             {
               type: 'button',
