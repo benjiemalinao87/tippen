@@ -8,13 +8,20 @@ interface VisitorActivityChartProps {
 }
 
 export function VisitorActivityChart({ visitors, analytics }: VisitorActivityChartProps) {
+  // Helper function to convert 24-hour to 12-hour format
+  const formatHour = (hour: number): string => {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12} ${period}`;
+  };
+
   // Use analytics data if available, otherwise calculate from visitors
   let recentData: { label: string; value: number }[] = [];
 
   if (analytics && analytics.visitorActivityByHour.length > 0) {
-    // Use data from analytics API
+    // Use data from analytics API with 12-hour format
     recentData = analytics.visitorActivityByHour.map((item: any) => ({
-      label: `${item.hour}:00`,
+      label: formatHour(parseInt(item.hour)),
       value: item.visitor_count || 0,
     }));
   } else {
@@ -26,7 +33,7 @@ export function VisitorActivityChart({ visitors, analytics }: VisitorActivityCha
       }).length;
 
       return {
-        label: `${hour.toString().padStart(2, '0')}:00`,
+        label: formatHour(hour),
         value: visitorsInHour,
       };
     });

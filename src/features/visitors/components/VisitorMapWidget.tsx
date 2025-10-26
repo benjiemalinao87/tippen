@@ -1,24 +1,44 @@
 import { MapPin, Globe } from 'lucide-react';
 import type { Visitor } from '../../../shared/types';
+import type { VisitorAnalytics } from '../../../services/dashboardApi';
 
 interface VisitorMapWidgetProps {
   visitors: Visitor[];
+  analytics?: VisitorAnalytics;
 }
 
-export function VisitorMapWidget({ visitors }: VisitorMapWidgetProps) {
-  // Group visitors by location
-  const locationCounts = visitors.reduce((acc, visitor) => {
-    const location = visitor.location || 'Unknown';
-    acc[location] = (acc[location] || 0) + 1;
+export function VisitorMapWidget({ visitors, analytics }: VisitorMapWidgetProps) {
+  // Use analytics location breakdown if available, otherwise use live visitors
+  let topLocations: [string, number][] = [];
+  let maxCount = 0;
+
+  if (analytics && analytics.locationBreakdown && analytics.locationBreakdown.length > 0) {
+    // Use location data from analytics API
+    topLocations = analytics.locationBreakdown.map((item: any) => [
+      item.location,
+      item.visitor_count
+    ]) as [string, number][];
+    maxCount = Math.max(...topLocations.map(([, count]) => count), 1);
+  } else {
+    // Fallback: Group live visitors by location
+    const locationCounts = visitors.reduce((acc, visitor) => {
+      const location = visitor.location || 'Unknown';
+      acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Sort by count and get top locations
+    topLocations = Object.entries(locationCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8);
+
+    maxCount = Math.max(...topLocations.map(([, count]) => count), 1);
+  }
+
+  const locationCounts = topLocations.reduce((acc, [location, count]) => {
+    acc[location] = count;
     return acc;
   }, {} as Record<string, number>);
-
-  // Sort by count and get top locations
-  const topLocations = Object.entries(locationCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 8);
-
-  const maxCount = Math.max(...topLocations.map(([, count]) => count));
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">

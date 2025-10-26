@@ -205,7 +205,8 @@ export function Visitors() {
     engagementRate: 0,
     avgTimeOnSite: 0,
     topVisitors: [],
-    visitorActivityByHour: []
+    visitorActivityByHour: [],
+    locationBreakdown: []
   });
 
   // Fetch analytics when date range changes
@@ -428,7 +429,7 @@ export function Visitors() {
       </div>
 
       {/* Location Map Widget */}
-      <VisitorMapWidget visitors={visitors} />
+      <VisitorMapWidget visitors={visitors} analytics={analytics} />
 
       {/* Visitor Table */}
       <VisitorTable 

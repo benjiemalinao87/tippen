@@ -418,6 +418,7 @@ export interface VisitorAnalytics {
   avgTimeOnSite: number;
   topVisitors: any[];
   visitorActivityByHour: any[];
+  locationBreakdown: any[];
 }
 
 /**
@@ -508,6 +509,21 @@ export async function getVisitorAnalytics(
     .bind(...bindings)
     .all();
 
+  // Get location breakdown
+  const locationBreakdownResult = await db
+    .prepare(
+      `SELECT
+        location,
+        COUNT(*) as visitor_count
+      FROM visitors
+      WHERE api_key = ? ${dateFilter} AND location IS NOT NULL AND location != ''
+      GROUP BY location
+      ORDER BY visitor_count DESC
+      LIMIT 10`
+    )
+    .bind(...bindings)
+    .all();
+
   const totalVisitors = (visitorStats?.total_visitors as number) || 0;
   const engagedVisitors = (visitorStats?.engaged_visitors as number) || 0;
 
@@ -520,5 +536,6 @@ export async function getVisitorAnalytics(
     avgTimeOnSite: (visitorStats?.avg_time_seconds as number) || 0,
     topVisitors: topVisitorsResult.results || [],
     visitorActivityByHour: activityByHourResult.results || [],
+    locationBreakdown: locationBreakdownResult.results || [],
   };
 }

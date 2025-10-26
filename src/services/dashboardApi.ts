@@ -136,6 +136,7 @@ export interface VisitorAnalytics {
   avgTimeOnSite: number;
   topVisitors: any[];
   visitorActivityByHour: any[];
+  locationBreakdown: any[];
 }
 
 export type DateRangeType = 'active' | 'today' | 'yesterday' | 'last7days' | 'last30days' | 'custom';
@@ -175,7 +176,8 @@ export async function getVisitorAnalytics(
       engagementRate: 0,
       avgTimeOnSite: 0,
       topVisitors: [],
-      visitorActivityByHour: []
+      visitorActivityByHour: [],
+      locationBreakdown: []
     };
   }
 }
