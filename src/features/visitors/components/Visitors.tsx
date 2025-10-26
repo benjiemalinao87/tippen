@@ -183,33 +183,49 @@ export function Visitors() {
   // Use WebSocket hook for real-time visitor data
   const { visitors: liveVisitors, connectionStatus, sendVideoInvite, refreshVisitors } = useVisitorWebSocket();
 
-  // Fallback to mock data if no live visitors (for demo purposes)
-  const visitors = liveVisitors.length > 0 ? liveVisitors : mockVisitors;
+  // Use only real visitors (no mock data fallback)
+  const visitors = liveVisitors;
 
   const [activeCall, setActiveCall] = useState<string | null>(null);
   const [videoSession, setVideoSession] = useState<VideoSession | null>(null);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'waiting'>('connecting');
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const previousVisitorCountRef = useRef<number>(0);
+  const [hasCheckedUrlParam, setHasCheckedUrlParam] = useState(false);
 
   // Auto-open visitor details modal if visitorId is in URL
   useEffect(() => {
+    // Only check once when visitors are loaded
+    if (hasCheckedUrlParam || visitors.length === 0) {
+      return;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const visitorId = urlParams.get('visitorId');
 
-    if (visitorId && visitors.length > 0) {
+    if (visitorId) {
+      console.log('[Visitors] Searching for visitor:', visitorId, 'in', visitors.length, 'visitors');
+
       const visitor = visitors.find(v =>
         (v.id === visitorId) || (v.visitorId === visitorId)
       );
 
       if (visitor) {
-        console.log('[Visitors] Auto-opening modal for visitor:', visitorId);
+        console.log('[Visitors] Found visitor, opening modal:', visitor);
         setSelectedVisitor(visitor);
-        // Clear URL parameter after opening
-        window.history.replaceState({}, '', window.location.pathname);
+        setHasCheckedUrlParam(true);
+
+        // Clear URL parameter after a delay (to ensure modal opens first)
+        setTimeout(() => {
+          window.history.replaceState({}, '', '/visitors');
+        }, 500);
+      } else {
+        console.log('[Visitors] Visitor not found in list');
+        // Still mark as checked to avoid infinite loop
+        setHasCheckedUrlParam(true);
       }
     }
-  }, [visitors]);
+  }, [visitors, hasCheckedUrlParam]);
 
   // Send Slack notification for new visitors
   useEffect(() => {
