@@ -132,7 +132,15 @@ export async function handleSignup(
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Create organization first
+    // Create API key record FIRST (before organization due to foreign key constraint)
+    await db.prepare(
+      `INSERT INTO api_keys (api_key, key_type, client_name, status)
+       VALUES (?, 'client', ?, 'active')`
+    )
+      .bind(apiKey, request.companyName)
+      .run();
+
+    // Now create organization with the API key
     const orgResult = await db.prepare(
       `INSERT INTO organizations
        (name, slug, staff_count, revenue_range, industry, website, referral_source, use_case, api_key)
@@ -152,14 +160,6 @@ export async function handleSignup(
       .run();
 
     const organizationId = orgResult.meta.last_row_id;
-
-    // Create API key record in api_keys table
-    await db.prepare(
-      `INSERT INTO api_keys (api_key, name, is_active, created_at)
-       VALUES (?, ?, 1, CURRENT_TIMESTAMP)`
-    )
-      .bind(apiKey, `${request.companyName} - Default Key`)
-      .run();
 
     console.log(`[Auth] Created organization "${request.companyName}" with API key: ${apiKey}`);
 
@@ -193,7 +193,7 @@ export async function handleSignup(
 
     // Log audit event
     await db.prepare(
-      `INSERT INTO audit_logs (user_id, action, ip_address, details)
+      `INSERT INTO audit_logs (user_id, action, ip_address, new_values)
        VALUES (?, 'user_signup', ?, ?)`
     )
       .bind(
@@ -219,11 +219,16 @@ export async function handleSignup(
         apiKey  // ← Include API key in response
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Auth] Signup error:', error);
+    console.error('[Auth] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause
+    });
     return {
       success: false,
-      error: 'Failed to create account. Please try again.'
+      error: `Failed to create account: ${error.message || 'Unknown error'}`
     };
   }
 }
@@ -291,7 +296,7 @@ export async function handleLogin(
 
     // Log audit event
     await db.prepare(
-      `INSERT INTO audit_logs (user_id, action, ip_address, details)
+      `INSERT INTO audit_logs (user_id, action, ip_address, new_values)
        VALUES (?, 'user_login', ?, ?)`
     )
       .bind(
