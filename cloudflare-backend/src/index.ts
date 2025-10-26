@@ -17,6 +17,12 @@ import {
   getTopCompanies,
   getCallVolumeOverTime
 } from './analytics';
+import {
+  handleSignup,
+  handleLogin,
+  verifySession,
+  handleLogout
+} from './auth';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -105,6 +111,26 @@ export default {
     // Route: Get call volume over time
     if (url.pathname === '/api/analytics/call-volume' && request.method === 'GET') {
       return handleGetCallVolume(request, env, corsHeaders, url);
+    }
+
+    // Route: User signup
+    if (url.pathname === '/api/auth/signup' && request.method === 'POST') {
+      return handleSignupRequest(request, env, corsHeaders);
+    }
+
+    // Route: User login
+    if (url.pathname === '/api/auth/login' && request.method === 'POST') {
+      return handleLoginRequest(request, env, corsHeaders);
+    }
+
+    // Route: Verify session
+    if (url.pathname === '/api/auth/verify' && request.method === 'POST') {
+      return handleVerifySession(request, env, corsHeaders);
+    }
+
+    // Route: Logout
+    if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
+      return handleLogoutRequest(request, env, corsHeaders);
     }
 
     return new Response('Tippen API', { status: 200 });
@@ -466,6 +492,131 @@ async function handleGetCallVolume(
     console.error('Error fetching call volume:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle user signup request
+ */
+async function handleSignupRequest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const signupData = await request.json() as any;
+    const result = await handleSignup(env.DB, signupData);
+
+    return new Response(
+      JSON.stringify(result),
+      {
+        status: result.success ? 200 : 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error: any) {
+    console.error('Signup error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle user login request
+ */
+async function handleLoginRequest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const loginData = await request.json() as any;
+    const result = await handleLogin(env.DB, loginData);
+
+    return new Response(
+      JSON.stringify(result),
+      {
+        status: result.success ? 200 : 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error: any) {
+    console.error('Login error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle session verification request
+ */
+async function handleVerifySession(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const { token } = await request.json() as any;
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Token required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const result = await verifySession(env.DB, token);
+
+    return new Response(
+      JSON.stringify(result),
+      {
+        status: result.success ? 200 : 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error: any) {
+    console.error('Session verification error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle logout request
+ */
+async function handleLogoutRequest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const { token } = await request.json() as any;
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Token required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const result = await handleLogout(env.DB, token);
+
+    return new Response(
+      JSON.stringify(result),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Logout error:', error);
+    return new Response(
+      JSON.stringify({ success: false }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

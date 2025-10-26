@@ -63,6 +63,8 @@ export function Onboarding() {
     referralSource: '',
     useCase: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const totalSteps = 3;
 
@@ -83,8 +85,36 @@ export function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    console.log('Submitting onboarding data:', formData);
-    // TODO: Call API to create account
+    setLoading(true);
+    setError('');
+
+    try {
+      const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://').replace('/ws/dashboard', '') || 'http://localhost:8787';
+
+      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.token && result.user) {
+        // Store token and user info
+        localStorage.setItem('tippen_auth_token', result.token);
+        localStorage.setItem('tippen_user', JSON.stringify(result.user));
+
+        // Redirect to dashboard
+        window.location.href = '/';
+      } else {
+        setError(result.error || 'Failed to create account. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError('Failed to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isStepComplete = (step: number): boolean => {
@@ -401,14 +431,21 @@ export function Onboarding() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!isStepComplete(currentStep)}
+                disabled={!isStepComplete(currentStep) || loading}
                 className="flex items-center gap-2 px-6 py-2.5 bg-green-600 dark:bg-green-500 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4" />
-                Complete Setup
+                {loading ? 'Creating account...' : 'Complete Setup'}
               </button>
             )}
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
         </div>
 
         {/* Sign In Link */}

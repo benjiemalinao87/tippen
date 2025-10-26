@@ -14,16 +14,33 @@ export function Login() {
     setLoading(true);
 
     try {
-      // TODO: Call login API
-      console.log('Logging in:', { email, password });
+      const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://').replace('/ws/dashboard', '') || 'http://localhost:8787';
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          rememberMe: document.getElementById('remember')?.checked
+        })
+      });
 
-      // Redirect to dashboard
-      window.location.href = '/';
+      const result = await response.json();
+
+      if (result.success && result.token && result.user) {
+        // Store token and user info
+        localStorage.setItem('tippen_auth_token', result.token);
+        localStorage.setItem('tippen_user', JSON.stringify(result.user));
+
+        // Redirect to dashboard
+        window.location.href = '/';
+      } else {
+        setError(result.error || 'Invalid email or password');
+      }
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
+      console.error('Login error:', err);
+      setError('Failed to connect to server. Please try again.');
     } finally {
       setLoading(false);
     }
