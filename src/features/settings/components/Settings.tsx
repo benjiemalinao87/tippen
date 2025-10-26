@@ -71,6 +71,7 @@ export function Settings() {
   const [slackConfig, setSlackConfig] = useState<{ webhookUrl: string; channelName: string } | null>(null);
   const [copiedScript, setCopiedScript] = useState(false);
   const [apiKey, setApiKey] = useState('your_api_key_here');
+  const [orgApiKey, setOrgApiKey] = useState<string | null>(null); // Organization API key (primary)
   const [backendUrl, setBackendUrl] = useState('https://tippen-backend.benjiemalinao879557.workers.dev');
   const [keyType, setKeyType] = useState<'client' | 'demo' | 'test'>('client');
   const [clientName, setClientName] = useState('');
@@ -90,13 +91,24 @@ export function Settings() {
       );
     }
 
-    // Load saved API key and backend URL
-    const savedApiKey = localStorage.getItem('tippen_api_key');
-    const savedBackendUrl = localStorage.getItem('tippen_backend_url');
-    
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
+    // Get user's organization API key from authenticated session
+    try {
+      const userStr = localStorage.getItem('tippen_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.apiKey) {
+          // Store organization API key separately
+          setOrgApiKey(user.apiKey);
+          // Use organization API key as default for tracking script
+          setApiKey(user.apiKey);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user API key:', error);
     }
+
+    // Load saved backend URL
+    const savedBackendUrl = localStorage.getItem('tippen_backend_url');
     if (savedBackendUrl) {
       setBackendUrl(savedBackendUrl);
     }
@@ -262,12 +274,39 @@ export function Settings() {
           </div>
         </div>
 
-        {/* API Key Generator */}
+        {/* Organization API Key (Primary) */}
+        {orgApiKey && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-300 dark:border-green-700 p-5 mb-6">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1 flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  Your Organization API Key
+                </h4>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  This is your primary API key. Use this for tracking visitors on your website.
+                </p>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 font-mono text-sm text-gray-900 dark:text-gray-100 border border-green-200 dark:border-green-800 break-all">
+              {orgApiKey}
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-green-700 dark:text-green-300">
+              <Check className="w-4 h-4" />
+              <span>This key is automatically used in your tracking script below</span>
+            </div>
+          </div>
+        )}
+
+        {/* API Key Generator (Optional/Advanced) */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800 p-4 mb-6">
-          <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-3 flex items-center gap-2">
+          <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-1 flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
-            Generate API Key
+            Generate Additional API Keys (Optional)
           </h4>
+          <p className="text-xs text-purple-700 dark:text-purple-300 mb-3">
+            For advanced use cases: multiple websites, test environments, or client-specific tracking
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
             <div>
               <label className="block text-xs font-medium text-purple-800 dark:text-purple-200 mb-2">
@@ -307,7 +346,7 @@ export function Settings() {
             </div>
           </div>
           <p className="text-xs text-purple-700 dark:text-purple-300">
-            💡 Click "Generate Key" to create a unique API key for your client
+            💡 Only generate additional keys if you need separate tracking for different sites or environments
           </p>
         </div>
 
@@ -315,7 +354,7 @@ export function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              API Key
+              Active API Key (Used in Tracking Script)
             </label>
             <input
               type="text"
@@ -325,7 +364,7 @@ export function Settings() {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono text-sm"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Generated key will appear here, or enter your own
+              {orgApiKey ? '✓ Using your organization API key by default' : 'Enter or generate an API key'}
             </p>
           </div>
           <div>
