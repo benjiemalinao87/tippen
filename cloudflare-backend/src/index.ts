@@ -226,7 +226,7 @@ async function handleVisitorTracking(
         const visitorType = isNewVisitor ? '🆕 New' : '🔄 Returning';
         console.log(`[Tippen] Sending Slack notification for ${visitorType} visitor:`, enrichedVisitor.company);
 
-        await sendNewVisitorNotification(slackConfig.webhookUrl, {
+        const slackPayload = {
           visitorId: enrichedVisitor.visitorId,
           company: `${visitorType} - ${enrichedVisitor.company || 'Unknown Company'}`,
           location: enrichedVisitor.location,
@@ -240,7 +240,11 @@ async function handleVisitorTracking(
           url: enrichedVisitor.url,
           ip: enrichedVisitor.ip,
           timestamp: new Date().toLocaleString()
-        });
+        };
+
+        console.log('[Tippen] Slack payload:', JSON.stringify(slackPayload, null, 2));
+
+        await sendNewVisitorNotification(slackConfig.webhookUrl, slackPayload);
 
         console.log('[Tippen] Slack notification sent successfully');
       }
@@ -692,7 +696,9 @@ function handleGetTrackingScript(corsHeaders: Record<string, string>): Response 
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/javascript',
-      'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      'Cache-Control': 'no-cache, no-store, must-revalidate', // No cache for testing
+      'Pragma': 'no-cache',
+      'Expires': '0'
     }
   });
 }
