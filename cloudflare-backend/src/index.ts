@@ -235,6 +235,10 @@ async function handleVisitorTracking(
           lastRole: enrichedVisitor.lastRole,
           pageViews: enrichedVisitor.pageViews || 1,
           timeOnSite: enrichedVisitor.timeOnSite,
+          referrer: enrichedVisitor.referrer,
+          timezone: enrichedVisitor.timezone,
+          url: enrichedVisitor.url,
+          ip: enrichedVisitor.ip,
           timestamp: new Date().toLocaleString()
         });
 

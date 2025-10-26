@@ -19,6 +19,10 @@ export interface VisitorNotificationData {
   timestamp?: string;
   pageViews?: number;
   timeOnSite?: string;
+  referrer?: string;
+  timezone?: string;
+  url?: string;
+  ip?: string;
 }
 
 export interface VideoCallNotificationData {
@@ -126,21 +130,25 @@ export async function sendNewVisitorNotification(
               type: 'mrkdwn',
               text: `*Page Views:*\n${data.pageViews}`
             } : null,
-            data.timeOnSite ? {
+            data.referrer ? {
               type: 'mrkdwn',
-              text: `*Time on Site:*\n${data.timeOnSite}`
+              text: `*Referrer:*\n${data.referrer === 'direct' ? 'Direct' : data.referrer}`
+            } : null,
+            data.timezone ? {
+              type: 'mrkdwn',
+              text: `*Timezone:*\n${data.timezone}`
+            } : null,
+            data.url ? {
+              type: 'mrkdwn',
+              text: `*URL:*\n${data.url}`
+            } : null,
+            data.ip ? {
+              type: 'mrkdwn',
+              text: `*IP:*\n${data.ip}`
             } : null,
             data.lastRole ? {
               type: 'mrkdwn',
               text: `*Role:*\n${data.lastRole}`
-            } : null,
-            data.revenue ? {
-              type: 'mrkdwn',
-              text: `*Revenue:*\n${data.revenue}`
-            } : null,
-            data.staff ? {
-              type: 'mrkdwn',
-              text: `*Staff:*\n${data.staff.toLocaleString()} employees`
             } : null
           ].filter(Boolean)
         },
