@@ -10,12 +10,15 @@ export interface SlackConfig {
 }
 
 export interface VisitorNotificationData {
+  visitorId: string;
   company: string;
   location?: string;
   revenue?: string;
   staff?: number;
   lastRole?: string;
   timestamp?: string;
+  pageViews?: number;
+  timeOnSite?: string;
 }
 
 export interface VideoCallNotificationData {
@@ -119,17 +122,25 @@ export async function sendNewVisitorNotification(
               type: 'mrkdwn',
               text: `*Location:*\n${data.location || 'Unknown'}`
             },
+            data.pageViews ? {
+              type: 'mrkdwn',
+              text: `*Page Views:*\n${data.pageViews}`
+            } : null,
+            data.timeOnSite ? {
+              type: 'mrkdwn',
+              text: `*Time on Site:*\n${data.timeOnSite}`
+            } : null,
+            data.lastRole ? {
+              type: 'mrkdwn',
+              text: `*Role:*\n${data.lastRole}`
+            } : null,
             data.revenue ? {
               type: 'mrkdwn',
               text: `*Revenue:*\n${data.revenue}`
             } : null,
             data.staff ? {
               type: 'mrkdwn',
-              text: `*Staff Count:*\n${data.staff.toLocaleString()} employees`
-            } : null,
-            data.lastRole ? {
-              type: 'mrkdwn',
-              text: `*Last Role:*\n${data.lastRole}`
+              text: `*Staff:*\n${data.staff.toLocaleString()} employees`
             } : null
           ].filter(Boolean)
         },
@@ -152,12 +163,22 @@ export async function sendNewVisitorNotification(
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: '👁️ View in Dashboard',
+                text: '📹 Start Video Call',
                 emoji: true
               },
               style: 'primary',
-              url: 'https://tippen.pages.dev/visitors',
-              action_id: 'view_dashboard'
+              url: `https://tippen.pages.dev/visitors?visitorId=${data.visitorId}`,
+              action_id: 'start_video_call'
+            },
+            {
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: '👁️ View Details',
+                emoji: true
+              },
+              url: `https://tippen.pages.dev/visitors?visitorId=${data.visitorId}`,
+              action_id: 'view_details'
             }
           ]
         }

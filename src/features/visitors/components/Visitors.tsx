@@ -192,6 +192,25 @@ export function Visitors() {
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const previousVisitorCountRef = useRef<number>(0);
 
+  // Auto-open visitor details modal if visitorId is in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const visitorId = urlParams.get('visitorId');
+
+    if (visitorId && visitors.length > 0) {
+      const visitor = visitors.find(v =>
+        (v.id === visitorId) || (v.visitorId === visitorId)
+      );
+
+      if (visitor) {
+        console.log('[Visitors] Auto-opening modal for visitor:', visitorId);
+        setSelectedVisitor(visitor);
+        // Clear URL parameter after opening
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [visitors]);
+
   // Send Slack notification for new visitors
   useEffect(() => {
     if (previousVisitorCountRef.current > 0 && visitors.length > previousVisitorCountRef.current) {

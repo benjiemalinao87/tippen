@@ -227,11 +227,14 @@ async function handleVisitorTracking(
         console.log(`[Tippen] Sending Slack notification for ${visitorType} visitor:`, enrichedVisitor.company);
 
         await sendNewVisitorNotification(slackConfig.webhookUrl, {
+          visitorId: enrichedVisitor.visitorId,
           company: `${visitorType} - ${enrichedVisitor.company || 'Unknown Company'}`,
           location: enrichedVisitor.location,
           revenue: enrichedVisitor.revenue,
           staff: enrichedVisitor.staff,
           lastRole: enrichedVisitor.lastRole,
+          pageViews: enrichedVisitor.pageViews || 1,
+          timeOnSite: enrichedVisitor.timeOnSite,
           timestamp: new Date().toLocaleString()
         });
 
