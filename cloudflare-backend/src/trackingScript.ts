@@ -164,7 +164,6 @@ export const TRACKING_SCRIPT = `/**
       bottom: 20px;
       right: 20px;
       width: 420px;
-      height: 600px;
       background: white;
       border-radius: 16px;
       overflow: hidden;
@@ -192,41 +191,123 @@ export const TRACKING_SCRIPT = `/**
       document.head.appendChild(style);
     }
 
-    const iframe = document.createElement('iframe');
-    iframe.src = guestUrl;
-    iframe.style.cssText = \`
-      width: 100%;
-      height: 100%;
-      border: none;
-    \`;
-    iframe.allow = 'camera; microphone; display-capture; autoplay';
+    // Get site name from hostname
+    const siteName = window.location.hostname.replace('www.', '');
 
+    // Create invitation prompt
+    const invitationPrompt = document.createElement('div');
+    invitationPrompt.style.cssText = \`
+      padding: 32px 24px;
+      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    \`;
+
+    invitationPrompt.innerHTML = \`
+      <div style="margin-bottom: 20px;">
+        <div style="width: 64px; height: 64px; background: white; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+            <path d="M23 7l-7 5 7 5V7z"></path>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: white;">Video Call Request</h3>
+        <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.5; color: rgba(255,255,255,0.9);">
+          A representative from <strong>\${siteName}</strong> would like to speak with you via video.
+        </p>
+        <p style="margin: 0 0 24px 0; font-size: 14px; color: rgba(255,255,255,0.8);">
+          Click "Join Call" to connect now.
+        </p>
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button id="tippen-reject-btn" style="
+          flex: 1;
+          padding: 14px 24px;
+          background: rgba(255,255,255,0.2);
+          color: white;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">
+          Reject
+        </button>
+        <button id="tippen-join-btn" style="
+          flex: 1;
+          padding: 14px 24px;
+          background: white;
+          color: #667eea;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">
+          Join Call
+        </button>
+      </div>
+    \`;
+
+    // Close button
     const closeBtn = document.createElement('button');
     closeBtn.innerHTML = '×';
     closeBtn.style.cssText = \`
       position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 40px;
-      height: 40px;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
       border: none;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.2);
       color: white;
       font-size: 24px;
       border-radius: 50%;
       cursor: pointer;
       z-index: 1;
+      line-height: 1;
+      transition: background 0.2s;
     \`;
+    closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(0, 0, 0, 0.4)';
+    closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(0, 0, 0, 0.2)';
     closeBtn.onclick = () => {
       document.body.removeChild(videoContainer);
       sendVisitorPing('video_declined');
     };
 
-    videoContainer.appendChild(iframe);
+    videoContainer.appendChild(invitationPrompt);
     videoContainer.appendChild(closeBtn);
     document.body.appendChild(videoContainer);
 
-    sendVisitorPing('video_accepted');
+    // Handle Reject button
+    document.getElementById('tippen-reject-btn').onclick = () => {
+      document.body.removeChild(videoContainer);
+      sendVisitorPing('video_rejected');
+    };
+
+    // Handle Join button
+    document.getElementById('tippen-join-btn').onclick = () => {
+      // Remove invitation prompt
+      invitationPrompt.remove();
+
+      // Resize container for video
+      videoContainer.style.height = '600px';
+
+      // Create and load video iframe
+      const iframe = document.createElement('iframe');
+      iframe.src = guestUrl;
+      iframe.style.cssText = \`
+        width: 100%;
+        height: 100%;
+        border: none;
+      \`;
+      iframe.allow = 'camera; microphone; display-capture; autoplay';
+
+      videoContainer.appendChild(iframe);
+      sendVisitorPing('video_accepted');
+    };
   }
 
   console.log('[Tippen] Visitor tracking initialized');
