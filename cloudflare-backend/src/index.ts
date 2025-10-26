@@ -23,6 +23,7 @@ import {
   verifySession,
   handleLogout
 } from './auth';
+import { TRACKING_SCRIPT } from './trackingScript';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -131,6 +132,11 @@ export default {
     // Route: Logout
     if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
       return handleLogoutRequest(request, env, corsHeaders);
+    }
+
+    // Route: Serve tracking script
+    if (url.pathname === '/tippen-tracker.js' && request.method === 'GET') {
+      return handleGetTrackingScript(corsHeaders);
     }
 
     return new Response('Tippen API', { status: 200 });
@@ -620,4 +626,17 @@ async function handleLogoutRequest(
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+}
+
+/**
+ * Serve tracking script
+ */
+function handleGetTrackingScript(corsHeaders: Record<string, string>): Response {
+  return new Response(TRACKING_SCRIPT, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/javascript',
+      'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+    }
+  });
 }
