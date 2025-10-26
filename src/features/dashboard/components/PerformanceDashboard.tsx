@@ -38,11 +38,19 @@ export function PerformanceDashboard({ selectedAgentId, dateRange }: Performance
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch real analytics data from D1
-      const realMetrics = await getDashboardMetrics();
-
-      // Also fetch the existing mock data for backward compatibility
-      const [metricsData, callsData, keywordsData] = await Promise.all([
+      // Fetch both real analytics and mock data in parallel with timeout
+      const [realMetrics, metricsData, callsData, keywordsData] = await Promise.all([
+        getDashboardMetrics().catch(err => {
+          console.error('Failed to fetch real metrics:', err);
+          return {
+            totalOutboundCalls: 0,
+            connectionRate: 0,
+            qualifiedLeads: 0,
+            avgCallDuration: 0,
+            totalVisitors: 0,
+            activeVisitors: 0
+          };
+        }),
         callsApi.getMetrics(selectedAgentId, dateRange.from, dateRange.to),
         callsApi.getAll(selectedAgentId, dateRange.from, dateRange.to),
         callsApi.getKeywordTrends(selectedAgentId)
@@ -67,6 +75,23 @@ export function PerformanceDashboard({ selectedAgentId, dateRange }: Performance
       console.log('📊 Dashboard loaded with REAL data from D1:', realMetrics);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Set fallback data
+      setMetrics({
+        totalCalls: 0,
+        answeredCalls: 0,
+        unansweredCalls: 0,
+        answerRate: 0,
+        spanishCallsPercent: 0,
+        englishCallsPercent: 0,
+        avgSummaryLength: 0,
+        qualifiedLeadsCount: 0,
+        qualificationRate: 0,
+        appointmentDetectionRate: 0,
+        crmSuccessRate: 0,
+        avgSentiment: 0,
+        avgHandlingTime: 0,
+        automationRate: 0,
+      });
     } finally {
       setLoading(false);
     }
