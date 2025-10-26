@@ -18,6 +18,7 @@ import { SentimentKeywords } from './SentimentKeywords';
 import { MultiLineChart } from '../../../shared/components/charts';
 import { callsApi, metricsApi } from '../../../lib/api';
 import type { DashboardMetrics, Call, KeywordTrend } from '../../../shared/types';
+import { getDashboardMetrics, getCallVolume, getTopCompanies } from '../../../services/dashboardApi';
 
 interface PerformanceDashboardProps {
   selectedAgentId?: string;
@@ -37,15 +38,33 @@ export function PerformanceDashboard({ selectedAgentId, dateRange }: Performance
   const loadData = async () => {
     setLoading(true);
     try {
+      // Fetch real analytics data from D1
+      const realMetrics = await getDashboardMetrics();
+
+      // Also fetch the existing mock data for backward compatibility
       const [metricsData, callsData, keywordsData] = await Promise.all([
         callsApi.getMetrics(selectedAgentId, dateRange.from, dateRange.to),
         callsApi.getAll(selectedAgentId, dateRange.from, dateRange.to),
         callsApi.getKeywordTrends(selectedAgentId)
       ]);
 
-      setMetrics(metricsData);
+      // Merge real metrics with mock data structure
+      const mergedMetrics = {
+        ...metricsData,
+        // Override with real data from D1
+        totalCalls: realMetrics.totalOutboundCalls,
+        answeredCalls: Math.round(realMetrics.totalOutboundCalls * (realMetrics.connectionRate / 100)),
+        unansweredCalls: realMetrics.totalOutboundCalls - Math.round(realMetrics.totalOutboundCalls * (realMetrics.connectionRate / 100)),
+        answerRate: realMetrics.connectionRate,
+        qualifiedLeadsCount: realMetrics.qualifiedLeads,
+        avgHandlingTime: realMetrics.avgCallDuration,
+      };
+
+      setMetrics(mergedMetrics);
       setCalls(callsData);
       setKeywords(keywordsData);
+
+      console.log('📊 Dashboard loaded with REAL data from D1:', realMetrics);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {

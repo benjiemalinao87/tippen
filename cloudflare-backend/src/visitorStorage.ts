@@ -2,6 +2,8 @@
  * Visitor Storage Functions for D1 Database
  */
 
+import { createVideoCall, updateVideoCallStatus, trackVisitorEvent, updateCompanyInsights } from './analytics';
+
 export interface Env {
   DB: D1Database;
 }
@@ -51,7 +53,7 @@ export async function saveVisitorToD1(
     } else {
       // Insert new visitor
       await env.DB.prepare(
-        `INSERT INTO visitors 
+        `INSERT INTO visitors
          (api_key, visitor_id, company, location, last_role, website, page_views, first_seen_at, last_seen_at)
          VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
@@ -66,11 +68,35 @@ export async function saveVisitorToD1(
         .run();
 
       console.log(`[D1] Inserted new visitor ${visitor.visitorId} from ${visitor.company || 'Unknown'}`);
-      
+
+      // Track new visitor event
+      await trackVisitorEvent(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitor.visitorId,
+        event_type: 'page_view',
+        page_url: website || null,
+        event_data: {
+          company: visitor.company,
+          location: visitor.location,
+          role: visitor.lastRole
+        }
+      });
+
+      // Update company insights for new visitor
+      if (visitor.company) {
+        await updateCompanyInsights(env.DB, apiKey, visitor.company, {
+          new_visit: true,
+          new_visitor: true,
+          page_views: 1
+        });
+      }
+
+      console.log(`[Analytics] Tracked new visitor event for ${visitor.visitorId}`);
+
       // Try to update API key usage count (but don't fail if API key doesn't exist)
       try {
         await env.DB.prepare(
-          `UPDATE api_keys 
+          `UPDATE api_keys
            SET usage_count = usage_count + 1,
                last_used_at = CURRENT_TIMESTAMP
            WHERE api_key = ?`
@@ -190,6 +216,13 @@ export async function updateVisitorVideoStatus(
   status: 'invited' | 'accepted' | 'declined' | 'completed'
 ): Promise<void> {
   try {
+    // Get visitor info for analytics
+    const visitor = await env.DB.prepare(
+      `SELECT company, last_role FROM visitors WHERE api_key = ? AND visitor_id = ?`
+    )
+      .bind(apiKey, visitorId)
+      .first();
+
     const updateFields: string[] = ['video_status = ?'];
     const params: any[] = [status];
 
@@ -200,14 +233,89 @@ export async function updateVisitorVideoStatus(
       updateFields.push('video_host_url = ?');
       updateFields.push('video_guest_url = ?');
       params.push(videoData.sessionId, videoData.roomId, videoData.hostUrl, videoData.guestUrl);
+
+      // Create video_calls record for analytics
+      await createVideoCall(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitorId,
+        session_id: videoData.sessionId,
+        company: visitor?.company as string || 'Unknown',
+        visitor_role: visitor?.last_role as string || null,
+        status: 'invited',
+        host_url: videoData.hostUrl,
+        guest_url: videoData.guestUrl
+      });
+
+      // Track visitor event
+      await trackVisitorEvent(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitorId,
+        event_type: 'video_invite_sent',
+        event_data: { session_id: videoData.sessionId }
+      });
+
+      // Update company insights
+      if (visitor?.company) {
+        await updateCompanyInsights(env.DB, apiKey, visitor.company as string, {
+          video_call: true
+        });
+      }
+
+      console.log(`[Analytics] Created video_calls record for ${videoData.sessionId}`);
     } else if (status === 'accepted') {
       updateFields.push('video_accepted_at = CURRENT_TIMESTAMP');
+
+      // Update video call status to connected
+      await updateVideoCallStatus(env.DB, videoData.sessionId, 'connected');
+
+      // Track visitor event
+      await trackVisitorEvent(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitorId,
+        event_type: 'video_connected',
+        event_data: { session_id: videoData.sessionId }
+      });
+
+      // Update company insights
+      if (visitor?.company) {
+        await updateCompanyInsights(env.DB, apiKey, visitor.company as string, {
+          successful_connection: true
+        });
+      }
+
+      console.log(`[Analytics] Updated video call to connected: ${videoData.sessionId}`);
+    } else if (status === 'completed') {
+      // Update video call status to completed
+      await updateVideoCallStatus(env.DB, videoData.sessionId, 'completed');
+
+      // Track visitor event
+      await trackVisitorEvent(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitorId,
+        event_type: 'video_ended',
+        event_data: { session_id: videoData.sessionId }
+      });
+
+      console.log(`[Analytics] Updated video call to completed: ${videoData.sessionId}`);
+    } else if (status === 'declined') {
+      // Update video call status to declined
+      await updateVideoCallStatus(env.DB, videoData.sessionId, 'declined');
+
+      // Track visitor event
+      await trackVisitorEvent(env.DB, {
+        api_key: apiKey,
+        visitor_id: visitorId,
+        event_type: 'video_declined',
+        event_data: { session_id: videoData.sessionId }
+      });
+
+      console.log(`[Analytics] Updated video call to declined: ${videoData.sessionId}`);
     }
 
     params.push(apiKey, visitorId);
 
     await env.DB.prepare(
-      `UPDATE visitors 
+      `UPDATE visitors
        SET ${updateFields.join(', ')}
        WHERE api_key = ? AND visitor_id = ?`
     )

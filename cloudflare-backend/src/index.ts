@@ -12,6 +12,11 @@ import {
   handleDeleteApiKey
 } from './apiKeyHandlers';
 import { saveVisitorToD1, updateVisitorVideoStatus } from './visitorStorage';
+import {
+  getDashboardMetrics,
+  getTopCompanies,
+  getCallVolumeOverTime
+} from './analytics';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -85,6 +90,21 @@ export default {
     // Route: Update visitor video status
     if (url.pathname === '/api/visitors/video-status' && request.method === 'POST') {
       return handleUpdateVideoStatus(request, env, corsHeaders);
+    }
+
+    // Route: Get dashboard analytics
+    if (url.pathname === '/api/analytics/dashboard' && request.method === 'GET') {
+      return handleGetDashboardAnalytics(request, env, corsHeaders, url);
+    }
+
+    // Route: Get top companies
+    if (url.pathname === '/api/analytics/top-companies' && request.method === 'GET') {
+      return handleGetTopCompanies(request, env, corsHeaders, url);
+    }
+
+    // Route: Get call volume over time
+    if (url.pathname === '/api/analytics/call-volume' && request.method === 'GET') {
+      return handleGetCallVolume(request, env, corsHeaders, url);
     }
 
     return new Response('Tippen API', { status: 200 });
@@ -340,6 +360,110 @@ async function handleUpdateVideoStatus(
     );
   } catch (error: any) {
     console.error('Error updating video status:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle dashboard analytics request
+ */
+async function handleGetDashboardAnalytics(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const metrics = await getDashboardMetrics(env.DB, apiKey);
+
+    return new Response(
+      JSON.stringify(metrics),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching dashboard analytics:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle top companies request
+ */
+async function handleGetTopCompanies(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const companies = await getTopCompanies(env.DB, apiKey, limit);
+
+    return new Response(
+      JSON.stringify(companies),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching top companies:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle call volume over time request
+ */
+async function handleGetCallVolume(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+    const days = parseInt(url.searchParams.get('days') || '7');
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const callVolume = await getCallVolumeOverTime(env.DB, apiKey, days);
+
+    return new Response(
+      JSON.stringify(callVolume),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching call volume:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
