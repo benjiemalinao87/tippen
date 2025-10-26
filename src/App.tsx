@@ -38,8 +38,36 @@ function App() {
     localStorage.setItem('darkMode', String(darkMode));
   }, [darkMode]);
 
+  // Set initial view based on URL path (for deep linking from Slack)
+  useEffect(() => {
+    const path = window.location.pathname;
+    console.log('[App] Initial URL path:', path);
+
+    if (path.startsWith('/visitors')) {
+      console.log('[App] Setting initial view to: visitors');
+      setCurrentView('visitors');
+    } else if (path.startsWith('/settings')) {
+      console.log('[App] Setting initial view to: settings');
+      setCurrentView('settings');
+    } else {
+      console.log('[App] Setting initial view to: dashboard');
+      setCurrentView('dashboard');
+    }
+  }, []);
+
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
+  };
+
+  const navigateTo = (view: View) => {
+    setCurrentView(view);
+    // Update URL to match the view
+    const paths = {
+      dashboard: '/',
+      visitors: '/visitors',
+      settings: '/settings'
+    };
+    window.history.pushState({}, '', paths[view]);
   };
 
   const loadAgents = async () => {
@@ -71,7 +99,7 @@ function App() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
-                  onClick={() => setCurrentView('dashboard')}
+                  onClick={() => navigateTo('dashboard')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
                     currentView === 'dashboard'
                       ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -82,7 +110,7 @@ function App() {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setCurrentView('visitors')}
+                  onClick={() => navigateTo('visitors')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
                     currentView === 'visitors'
                       ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -93,7 +121,7 @@ function App() {
                   Visitors
                 </button>
                 <button
-                  onClick={() => setCurrentView('settings')}
+                  onClick={() => navigateTo('settings')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
                     currentView === 'settings'
                       ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
