@@ -8,7 +8,9 @@ import { TopCompaniesWidget } from './TopCompaniesWidget';
 import { VisitorMapWidget } from './VisitorMapWidget';
 import { VisitorTable } from './VisitorTable';
 import { VisitorDetailsModal } from './VisitorDetailsModal';
+import { DateRangePicker, type DateRangeType } from './DateRangePicker';
 import { slackService } from '../../../services/slackService';
+import { getVisitorAnalytics, type VisitorAnalytics } from '../../../services/dashboardApi';
 
 // Extended visitor interface for display purposes
 interface Visitor extends VisitorType {
@@ -193,6 +195,36 @@ export function Visitors() {
   const previousVisitorCountRef = useRef<number>(0);
   const [hasCheckedUrlParam, setHasCheckedUrlParam] = useState(false);
 
+  // Date range and analytics state
+  const [selectedRange, setSelectedRange] = useState<DateRangeType>('active');
+  const [analytics, setAnalytics] = useState<VisitorAnalytics>({
+    totalVisitors: 0,
+    activeVisitors: 0,
+    totalPageViews: 0,
+    avgPageViewsPerVisitor: 0,
+    engagementRate: 0,
+    avgTimeOnSite: 0,
+    topVisitors: [],
+    visitorActivityByHour: []
+  });
+
+  // Fetch analytics when date range changes
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      const data = await getVisitorAnalytics(selectedRange);
+      setAnalytics(data);
+    };
+
+    fetchAnalytics();
+  }, [selectedRange]);
+
+  // Handle date range change
+  const handleRangeChange = async (range: DateRangeType, startDate?: string, endDate?: string) => {
+    setSelectedRange(range);
+    const data = await getVisitorAnalytics(range, startDate, endDate);
+    setAnalytics(data);
+  };
+
   // Auto-open visitor details modal if visitorId is in URL
   useEffect(() => {
     // Only check once when visitors are loaded
@@ -367,6 +399,10 @@ export function Visitors() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <DateRangePicker
+            selectedRange={selectedRange}
+            onRangeChange={handleRangeChange}
+          />
           <div className="flex items-center gap-2">
             {getConnectionStatusIcon()}
             <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
@@ -383,11 +419,11 @@ export function Visitors() {
       </div>
 
       {/* Stats Cards */}
-      <VisitorStatsCards visitors={visitors} />
+      <VisitorStatsCards visitors={visitors} analytics={analytics} />
 
       {/* Charts and Widgets Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <VisitorActivityChart visitors={visitors} />
+        <VisitorActivityChart visitors={visitors} analytics={analytics} />
         <TopCompaniesWidget visitors={visitors} />
       </div>
 

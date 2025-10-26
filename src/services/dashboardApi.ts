@@ -126,3 +126,56 @@ export async function getCallVolume(days: number = 7): Promise<CallVolumeData[]>
     return [];
   }
 }
+
+export interface VisitorAnalytics {
+  totalVisitors: number;
+  activeVisitors: number;
+  totalPageViews: number;
+  avgPageViewsPerVisitor: number;
+  engagementRate: number;
+  avgTimeOnSite: number;
+  topVisitors: any[];
+  visitorActivityByHour: any[];
+}
+
+export type DateRangeType = 'active' | 'today' | 'yesterday' | 'last7days' | 'last30days' | 'custom';
+
+/**
+ * Get visitor analytics for a given date range
+ */
+export async function getVisitorAnalytics(
+  dateRange: DateRangeType = 'today',
+  startDate?: string,
+  endDate?: string
+): Promise<VisitorAnalytics> {
+  try {
+    const apiKey = getUserApiKey();
+    let url = `${BACKEND_URL}/api/analytics/visitors?api_key=${apiKey}&range=${dateRange}`;
+
+    if (dateRange === 'custom' && startDate && endDate) {
+      url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch visitor analytics: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching visitor analytics:', error);
+    // Return fallback data
+    return {
+      totalVisitors: 0,
+      activeVisitors: 0,
+      totalPageViews: 0,
+      avgPageViewsPerVisitor: 0,
+      engagementRate: 0,
+      avgTimeOnSite: 0,
+      topVisitors: [],
+      visitorActivityByHour: []
+    };
+  }
+}

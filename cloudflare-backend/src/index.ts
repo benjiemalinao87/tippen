@@ -15,7 +15,8 @@ import { saveVisitorToD1, updateVisitorVideoStatus } from './visitorStorage';
 import {
   getDashboardMetrics,
   getTopCompanies,
-  getCallVolumeOverTime
+  getCallVolumeOverTime,
+  getVisitorAnalytics
 } from './analytics';
 import {
   handleSignup,
@@ -113,6 +114,11 @@ export default {
     // Route: Get call volume over time
     if (url.pathname === '/api/analytics/call-volume' && request.method === 'GET') {
       return handleGetCallVolume(request, env, corsHeaders, url);
+    }
+
+    // Route: Get visitor analytics
+    if (url.pathname === '/api/analytics/visitors' && request.method === 'GET') {
+      return handleGetVisitorAnalytics(request, env, corsHeaders, url);
     }
 
     // Route: User signup
@@ -602,6 +608,43 @@ async function handleGetCallVolume(
     );
   } catch (error: any) {
     console.error('Error fetching call volume:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle visitor analytics request
+ */
+async function handleGetVisitorAnalytics(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+    const dateRange = url.searchParams.get('range') as any || 'today';
+    const startDate = url.searchParams.get('start_date') || undefined;
+    const endDate = url.searchParams.get('end_date') || undefined;
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const analytics = await getVisitorAnalytics(env.DB, apiKey, dateRange, startDate, endDate);
+
+    return new Response(
+      JSON.stringify(analytics),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching visitor analytics:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

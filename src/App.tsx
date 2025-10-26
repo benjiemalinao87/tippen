@@ -9,7 +9,7 @@ import type { Agent } from './shared/types';
 type View = 'dashboard' | 'visitors' | 'settings';
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [currentView, setCurrentView] = useState<View>('visitors');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [darkMode, setDarkMode] = useState(() => {
@@ -43,15 +43,16 @@ function App() {
     const path = window.location.pathname;
     console.log('[App] Initial URL path:', path);
 
-    if (path.startsWith('/visitors')) {
-      console.log('[App] Setting initial view to: visitors');
-      setCurrentView('visitors');
+    if (path.startsWith('/dashboard')) {
+      console.log('[App] Setting initial view to: dashboard');
+      setCurrentView('dashboard');
     } else if (path.startsWith('/settings')) {
       console.log('[App] Setting initial view to: settings');
       setCurrentView('settings');
     } else {
-      console.log('[App] Setting initial view to: dashboard');
-      setCurrentView('dashboard');
+      // Default to visitors page
+      console.log('[App] Setting initial view to: visitors (default)');
+      setCurrentView('visitors');
     }
   }, []);
 
@@ -98,7 +99,8 @@ function App() {
 
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                <button
+                {/* Dashboard button hidden - default view is Visitors */}
+                {/* <button
                   onClick={() => navigateTo('dashboard')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
                     currentView === 'dashboard'
@@ -108,7 +110,7 @@ function App() {
                 >
                   <BarChart3 className="w-4 h-4" />
                   Dashboard
-                </button>
+                </button> */}
                 <button
                   onClick={() => navigateTo('visitors')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${

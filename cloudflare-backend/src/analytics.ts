@@ -404,3 +404,121 @@ export async function getCallVolumeOverTime(
 
   return results.results || [];
 }
+
+// ============================================================================
+// VISITOR ANALYTICS
+// ============================================================================
+
+export interface VisitorAnalytics {
+  totalVisitors: number;
+  activeVisitors: number;
+  totalPageViews: number;
+  avgPageViewsPerVisitor: number;
+  engagementRate: number;
+  avgTimeOnSite: number;
+  topVisitors: any[];
+  visitorActivityByHour: any[];
+}
+
+/**
+ * Get visitor analytics for a given date range
+ */
+export async function getVisitorAnalytics(
+  db: D1Database,
+  api_key: string,
+  dateRange: 'active' | 'today' | 'yesterday' | 'last7days' | 'last30days' | 'custom',
+  startDate?: string,
+  endDate?: string
+): Promise<VisitorAnalytics> {
+  // Build date filter based on range
+  let dateFilter = '';
+  let bindings: any[] = [api_key];
+
+  if (dateRange === 'active') {
+    // Active visitors (seen in last 5 minutes)
+    dateFilter = "AND last_seen_at >= datetime('now', '-5 minutes')";
+  } else if (dateRange === 'today') {
+    dateFilter = "AND DATE(first_seen_at) = DATE('now')";
+  } else if (dateRange === 'yesterday') {
+    dateFilter = "AND DATE(first_seen_at) = DATE('now', '-1 day')";
+  } else if (dateRange === 'last7days') {
+    dateFilter = "AND first_seen_at >= datetime('now', '-7 days')";
+  } else if (dateRange === 'last30days') {
+    dateFilter = "AND first_seen_at >= datetime('now', '-30 days')";
+  } else if (dateRange === 'custom' && startDate && endDate) {
+    dateFilter = "AND DATE(first_seen_at) BETWEEN DATE(?) AND DATE(?)";
+    bindings.push(startDate, endDate);
+  }
+
+  // Get visitor stats
+  const visitorStats = await db
+    .prepare(
+      `SELECT
+        COUNT(DISTINCT visitor_id) as total_visitors,
+        SUM(page_views) as total_page_views,
+        AVG(page_views) as avg_page_views,
+        AVG(total_time_seconds) as avg_time_seconds,
+        SUM(CASE WHEN page_views >= 3 THEN 1 ELSE 0 END) as engaged_visitors
+      FROM visitors
+      WHERE api_key = ? ${dateFilter}`
+    )
+    .bind(...bindings)
+    .first();
+
+  // Get active visitors count
+  const activeVisitors = await db
+    .prepare(
+      `SELECT COUNT(DISTINCT visitor_id) as count
+      FROM visitors
+      WHERE api_key = ? AND last_seen_at >= datetime('now', '-5 minutes')`
+    )
+    .bind(api_key)
+    .first();
+
+  // Get top visitors (most engaged)
+  const topVisitorsResult = await db
+    .prepare(
+      `SELECT
+        visitor_id,
+        company,
+        location,
+        last_role,
+        page_views,
+        total_time_seconds,
+        last_seen_at
+      FROM visitors
+      WHERE api_key = ? ${dateFilter}
+      ORDER BY page_views DESC, total_time_seconds DESC
+      LIMIT 10`
+    )
+    .bind(...bindings)
+    .all();
+
+  // Get visitor activity by hour (last 7 hours for today, or aggregate for larger ranges)
+  const activityByHourResult = await db
+    .prepare(
+      `SELECT
+        strftime('%H', first_seen_at) as hour,
+        COUNT(*) as visitor_count
+      FROM visitors
+      WHERE api_key = ? ${dateFilter}
+      GROUP BY strftime('%H', first_seen_at)
+      ORDER BY hour ASC`
+    )
+    .bind(...bindings)
+    .all();
+
+  const totalVisitors = (visitorStats?.total_visitors as number) || 0;
+  const engagedVisitors = (visitorStats?.engaged_visitors as number) || 0;
+
+  return {
+    totalVisitors,
+    activeVisitors: (activeVisitors?.count as number) || 0,
+    totalPageViews: (visitorStats?.total_page_views as number) || 0,
+    avgPageViewsPerVisitor: (visitorStats?.avg_page_views as number) || 0,
+    engagementRate: totalVisitors > 0 ? (engagedVisitors / totalVisitors) * 100 : 0,
+    avgTimeOnSite: (visitorStats?.avg_time_seconds as number) || 0,
+    topVisitors: topVisitorsResult.results || [],
+    visitorActivityByHour: activityByHourResult.results || [],
+  };
+}

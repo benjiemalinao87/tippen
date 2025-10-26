@@ -1,29 +1,24 @@
 import { Users, Eye, TrendingUp, Clock } from 'lucide-react';
 import type { Visitor } from '../../../shared/types';
+import type { VisitorAnalytics } from '../../../services/dashboardApi';
 
 interface VisitorStatsCardsProps {
   visitors: Visitor[];
+  analytics: VisitorAnalytics;
 }
 
-export function VisitorStatsCards({ visitors }: VisitorStatsCardsProps) {
-  // Calculate stats
-  const totalVisitors = visitors.length;
-  const activeVisitors = visitors.filter(v => v.status === 'active').length;
-  const totalPageViews = visitors.reduce((sum, v) => sum + v.pageViews, 0);
-  const avgPageViews = totalVisitors > 0 ? Math.round(totalPageViews / totalVisitors) : 0;
-  
-  // Calculate average time on site (in minutes)
-  const avgTimeOnSite = totalVisitors > 0 
-    ? Math.round(visitors.reduce((sum, v) => {
-        const timeSpent = (Date.now() - new Date(v.timestamp).getTime()) / 60000;
-        return sum + timeSpent;
-      }, 0) / totalVisitors)
-    : 0;
+export function VisitorStatsCards({ visitors, analytics }: VisitorStatsCardsProps) {
+  // Use analytics data from API
+  const totalVisitors = analytics.totalVisitors;
+  const activeVisitors = analytics.activeVisitors;
+  const totalPageViews = analytics.totalPageViews;
+  const avgPageViews = Math.round(analytics.avgPageViewsPerVisitor);
+  const avgTimeOnSite = Math.round(analytics.avgTimeOnSite / 60); // Convert seconds to minutes
+  const engagementRate = Math.round(analytics.engagementRate);
 
-  // Calculate engagement rate (visitors with more than 1 page view)
-  const engagedVisitors = visitors.filter(v => v.pageViews > 1).length;
-  const engagementRate = totalVisitors > 0 
-    ? Math.round((engagedVisitors / totalVisitors) * 100) 
+  // Calculate engaged visitors from engagement rate
+  const engagedVisitors = totalVisitors > 0
+    ? Math.round((engagementRate / 100) * totalVisitors)
     : 0;
 
   const stats = [

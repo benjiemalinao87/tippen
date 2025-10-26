@@ -1,32 +1,45 @@
 import { BarChart } from '../../../shared/components/charts';
 import type { Visitor } from '../../../shared/types';
+import type { VisitorAnalytics } from '../../../services/dashboardApi';
 
 interface VisitorActivityChartProps {
   visitors: Visitor[];
+  analytics?: VisitorAnalytics;
 }
 
-export function VisitorActivityChart({ visitors }: VisitorActivityChartProps) {
-  // Group visitors by hour of day
-  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    const visitorsInHour = visitors.filter(v => {
-      const visitorHour = new Date(v.timestamp).getHours();
-      return visitorHour === hour;
-    }).length;
+export function VisitorActivityChart({ visitors, analytics }: VisitorActivityChartProps) {
+  // Use analytics data if available, otherwise calculate from visitors
+  let recentData: { label: string; value: number }[] = [];
 
-    return {
-      label: `${hour.toString().padStart(2, '0')}:00`,
-      value: visitorsInHour,
-    };
-  });
-
-  // Get recent activity (last 7 hours)
-  const currentHour = new Date().getHours();
-  const recentData = hourlyData
-    .slice(Math.max(0, currentHour - 6), currentHour + 1)
-    .map(d => ({
-      label: d.label,
-      value: d.value,
+  if (analytics && analytics.visitorActivityByHour.length > 0) {
+    // Use data from analytics API
+    recentData = analytics.visitorActivityByHour.map((item: any) => ({
+      label: `${item.hour}:00`,
+      value: item.visitor_count || 0,
     }));
+  } else {
+    // Fallback: Calculate from visitors array
+    const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+      const visitorsInHour = visitors.filter(v => {
+        const visitorHour = new Date(v.timestamp).getHours();
+        return visitorHour === hour;
+      }).length;
+
+      return {
+        label: `${hour.toString().padStart(2, '0')}:00`,
+        value: visitorsInHour,
+      };
+    });
+
+    // Get recent activity (last 7 hours)
+    const currentHour = new Date().getHours();
+    recentData = hourlyData
+      .slice(Math.max(0, currentHour - 6), currentHour + 1)
+      .map(d => ({
+        label: d.label,
+        value: d.value,
+      }));
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">

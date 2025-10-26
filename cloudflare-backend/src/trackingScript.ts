@@ -155,33 +155,42 @@ export const TRACKING_SCRIPT = `/**
   // Connect to WebSocket
   connectWebSocket();
 
-  // Show video call popup
+  // Show video call popup (chat widget style in bottom right corner)
   function showVideoCallPopup(guestUrl) {
-    const overlay = document.createElement('div');
-    overlay.id = 'tippen-video-modal';
-    overlay.style.cssText = \`
+    const videoContainer = document.createElement('div');
+    videoContainer.id = 'tippen-video-modal';
+    videoContainer.style.cssText = \`
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.8);
+      bottom: 20px;
+      right: 20px;
+      width: 420px;
+      height: 600px;
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       z-index: 999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      animation: slideInUp 0.3s ease-out;
     \`;
 
-    const videoContainer = document.createElement('div');
-    videoContainer.style.cssText = \`
-      width: 90vw;
-      max-width: 1200px;
-      height: 90vh;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      position: relative;
-    \`;
+    // Add animation keyframes
+    if (!document.getElementById('tippen-animations')) {
+      const style = document.createElement('style');
+      style.id = 'tippen-animations';
+      style.textContent = \`
+        @keyframes slideInUp {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+      \`;
+      document.head.appendChild(style);
+    }
 
     const iframe = document.createElement('iframe');
     iframe.src = guestUrl;
@@ -209,14 +218,13 @@ export const TRACKING_SCRIPT = `/**
       z-index: 1;
     \`;
     closeBtn.onclick = () => {
-      document.body.removeChild(overlay);
+      document.body.removeChild(videoContainer);
       sendVisitorPing('video_declined');
     };
 
     videoContainer.appendChild(iframe);
     videoContainer.appendChild(closeBtn);
-    overlay.appendChild(videoContainer);
-    document.body.appendChild(overlay);
+    document.body.appendChild(videoContainer);
 
     sendVisitorPing('video_accepted');
   }
