@@ -415,6 +415,7 @@ export function Visitors() {
         <VisitorDetailsModal
           visitor={selectedVisitor}
           onClose={() => setSelectedVisitor(null)}
+          onStartVideoCall={handleStartCall}
         />
       )}
 

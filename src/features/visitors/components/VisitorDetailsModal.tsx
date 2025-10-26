@@ -4,9 +4,10 @@ import type { Visitor } from '../../../shared/types';
 interface VisitorDetailsModalProps {
   visitor: Visitor;
   onClose: () => void;
+  onStartVideoCall: (visitor: Visitor) => void;
 }
 
-export function VisitorDetailsModal({ visitor, onClose }: VisitorDetailsModalProps) {
+export function VisitorDetailsModal({ visitor, onClose, onStartVideoCall }: VisitorDetailsModalProps) {
   const getRoleBadgeColor = (role: string | undefined): string => {
     if (!role) return 'bg-gray-50/80 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
     const roleLower = role.toLowerCase();
@@ -197,7 +198,10 @@ export function VisitorDetailsModal({ visitor, onClose }: VisitorDetailsModalPro
 
         {/* Footer Actions */}
         <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex gap-3">
-          <button className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+          <button
+            onClick={() => onStartVideoCall(visitor)}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
             Start Video Call
           </button>
           <button className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-lg font-medium transition-colors">

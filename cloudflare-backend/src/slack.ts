@@ -16,6 +16,7 @@ export interface VisitorNotificationData {
   revenue?: string;
   staff?: number;
   lastRole?: string;
+  deviceType?: string;
   timestamp?: string;
   pageViews?: number;
   timeOnSite?: string;
@@ -149,6 +150,10 @@ export async function sendNewVisitorNotification(
             data.lastRole ? {
               type: 'mrkdwn',
               text: `*Role:*\n${data.lastRole}`
+            } : null,
+            data.deviceType ? {
+              type: 'mrkdwn',
+              text: `*Device:*\n${data.deviceType}`
             } : null
           ].filter(Boolean)
         },
