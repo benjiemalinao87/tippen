@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface SlackConfigModalProps {
@@ -30,6 +30,16 @@ export function SlackConfigModal({
   const [notifyReturningVisitors, setNotifyReturningVisitors] = useState(currentNotifyReturningVisitors);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  // Update state when props change (e.g., when modal opens with saved config)
+  useEffect(() => {
+    if (isOpen) {
+      setWebhookUrl(currentWebhookUrl);
+      setChannelName(currentChannelName);
+      setNotifyNewVisitors(currentNotifyNewVisitors);
+      setNotifyReturningVisitors(currentNotifyReturningVisitors);
+    }
+  }, [isOpen, currentWebhookUrl, currentChannelName, currentNotifyNewVisitors, currentNotifyReturningVisitors]);
 
   if (!isOpen) return null;
 
