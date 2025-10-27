@@ -9,6 +9,7 @@ import { VisitorMapWidget } from './VisitorMapWidget';
 import { VisitorTable } from './VisitorTable';
 import { VisitorDetailsModal } from './VisitorDetailsModal';
 import { DateRangePicker, type DateRangeType } from './DateRangePicker';
+import { VideoSessionsHistory } from '../../dashboard/components/VideoSessionsHistory';
 import { slackService } from '../../../services/slackService';
 import { getVisitorAnalytics, type VisitorAnalytics } from '../../../services/dashboardApi';
 
@@ -430,6 +431,9 @@ export function Visitors() {
 
       {/* Location Map Widget */}
       <VisitorMapWidget visitors={visitors} analytics={analytics} />
+
+      {/* Video Sessions History */}
+      <VideoSessionsHistory />
 
       {/* Visitor Table */}
       <VisitorTable 
