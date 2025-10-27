@@ -344,12 +344,16 @@ export const TRACKING_SCRIPT = `/**
 
       // Update close button to end the call properly when video is active
       closeBtn.onclick = async () => {
-        document.body.removeChild(videoContainer);
+        console.log('[Tippen] Close button clicked - ending video call');
+        console.log('[Tippen] Session ID:', sessionId);
+
         sendVisitorPing('video_ended');
 
         // Update video session status to 'completed' and calculate duration
+        // Send this BEFORE removing the DOM element to ensure it completes
         try {
-          await fetch(\`\${backendUrl}/api/visitors/video-status\`, {
+          console.log('[Tippen] Sending completion status to backend...');
+          const response = await fetch(\`\${backendUrl}/api/visitors/video-status\`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -359,9 +363,26 @@ export const TRACKING_SCRIPT = `/**
               status: 'completed'
             })
           });
-          console.log('[Tippen] Video session marked as completed');
+
+          console.log('[Tippen] Response status:', response.status);
+          if (response.ok) {
+            console.log('[Tippen] ✅ Video session marked as completed successfully');
+          } else {
+            const errorText = await response.text();
+            console.error('[Tippen] ❌ Failed to mark session as completed:', response.status, errorText);
+          }
         } catch (error) {
-          console.error('[Tippen] Failed to update video status:', error);
+          console.error('[Tippen] ❌ Network error updating video status:', error);
+        } finally {
+          // Remove the video container after sending the status
+          try {
+            if (videoContainer && videoContainer.parentNode) {
+              document.body.removeChild(videoContainer);
+              console.log('[Tippen] Video container removed');
+            }
+          } catch (e) {
+            console.error('[Tippen] Error removing video container:', e);
+          }
         }
       };
     };

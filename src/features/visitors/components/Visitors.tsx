@@ -377,8 +377,45 @@ export function Visitors() {
   };
 
   // Handle end video call
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (videoSession && activeVisitor) {
+      // Send completion status to backend BEFORE showing feedback modal
+      // This ensures duration is tracked even if visitor's browser doesn't send it
+      try {
+        console.log('[Admin] Ending video call, marking as completed');
+        console.log('[Admin] Session ID:', videoSession.sessionId);
+        console.log('[Admin] Visitor ID:', activeVisitor.visitorId);
+
+        const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
+                          'https://tippen-backend.benjiemalinao879557.workers.dev';
+        const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+
+        console.log('[Admin] Sending completion status to backend...');
+        const response = await fetch(`${backendUrl}/api/visitors/video-status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            apiKey,
+            visitorId: activeVisitor.visitorId,
+            videoData: { sessionId: videoSession.sessionId },
+            status: 'completed'
+          })
+        });
+
+        console.log('[Admin] Response status:', response.status);
+        if (response.ok) {
+          console.log('[Admin] ✅ Video session marked as completed successfully');
+        } else {
+          const errorText = await response.text();
+          console.error('[Admin] ❌ Failed to mark session as completed:', response.status, errorText);
+        }
+      } catch (error) {
+        console.error('[Admin] ❌ Network error updating video status:', error);
+        // Continue to feedback modal even if status update fails
+      }
+
       // Store session info for feedback
       setPendingFeedbackSession({
         sessionId: videoSession.sessionId,
