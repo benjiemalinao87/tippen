@@ -172,22 +172,8 @@ export function Settings() {
 
   const toggleIntegration = async (id: string) => {
     if (id === 'slack') {
-      const slackIntegration = integrationsState.find(i => i.id === 'slack');
-      if (slackIntegration?.connected) {
-        // Disconnect Slack - save to D1 database
-        await slackService.setConfig('', '', false, false, false);
-        setSlackConfig(null);
-        setIntegrationsState(prev =>
-          prev.map(integration =>
-            integration.id === id
-              ? { ...integration, connected: false }
-              : integration
-          )
-        );
-      } else {
-        // Show configuration modal
-        setShowSlackModal(true);
-      }
+      // Always show configuration modal for Slack (whether connected or not)
+      setShowSlackModal(true);
     } else {
       // Other integrations - simple toggle
       setIntegrationsState(prev =>
@@ -198,6 +184,19 @@ export function Settings() {
         )
       );
     }
+  };
+
+  const disconnectSlack = async () => {
+    // Disconnect Slack - save to D1 database
+    await slackService.setConfig('', '', false, false, false);
+    setSlackConfig(null);
+    setIntegrationsState(prev =>
+      prev.map(integration =>
+        integration.id === 'slack'
+          ? { ...integration, connected: false }
+          : integration
+      )
+    );
   };
 
   const handleSlackSave = async (
@@ -632,10 +631,11 @@ export function Settings() {
           {communicationIntegrations.map((integration) => (
             <div
               key={integration.id}
-              className={`relative p-4 rounded-lg border-2 transition-all duration-200 ${
+              onClick={() => toggleIntegration(integration.id)}
+              className={`relative p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
                 integration.connected
-                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-700'
+                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 hover:border-green-300 dark:hover:border-green-700'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-green-200 dark:hover:border-green-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
               }`}
             >
               <div className="flex items-start justify-between mb-3">
@@ -663,19 +663,16 @@ export function Settings() {
               </div>
 
               <div className="flex items-center justify-between">
-                <button
-                  onClick={() => toggleIntegration(integration.id)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                <span
+                  className={`px-4 py-2 rounded-md text-sm font-medium ${
                     integration.connected
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
-                      : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                   }`}
                 >
                   {integration.connected ? 'Connected' : 'Connect'}
-                </button>
-                <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" />
-                </button>
+                </span>
+                <ExternalLink className="w-4 h-4 text-gray-400" />
               </div>
             </div>
           ))}
@@ -710,10 +707,12 @@ export function Settings() {
         isOpen={showSlackModal}
         onClose={() => setShowSlackModal(false)}
         onSave={handleSlackSave}
+        onDisconnect={disconnectSlack}
         currentWebhookUrl={slackConfig?.webhookUrl}
         currentChannelName={slackConfig?.channelName}
         currentNotifyNewVisitors={slackConfig?.notifyNewVisitors ?? true}
         currentNotifyReturningVisitors={slackConfig?.notifyReturningVisitors ?? true}
+        isConnected={integrationsState.find(i => i.id === 'slack')?.connected || false}
       />
     </div>
   );

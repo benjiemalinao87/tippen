@@ -5,20 +5,24 @@ interface SlackConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (webhookUrl: string, channelName: string, notifyNewVisitors: boolean, notifyReturningVisitors: boolean) => void;
+  onDisconnect?: () => void;
   currentWebhookUrl?: string;
   currentChannelName?: string;
   currentNotifyNewVisitors?: boolean;
   currentNotifyReturningVisitors?: boolean;
+  isConnected?: boolean;
 }
 
 export function SlackConfigModal({
   isOpen,
   onClose,
   onSave,
+  onDisconnect,
   currentWebhookUrl = '',
   currentChannelName = '',
   currentNotifyNewVisitors = true,
-  currentNotifyReturningVisitors = true
+  currentNotifyReturningVisitors = true,
+  isConnected = false
 }: SlackConfigModalProps) {
   const [webhookUrl, setWebhookUrl] = useState(currentWebhookUrl);
   const [channelName, setChannelName] = useState(currentChannelName);
@@ -85,9 +89,16 @@ export function SlackConfigModal({
               alt="Slack logo"
               className="w-6 h-6"
             />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Configure Slack Integration
-            </h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {isConnected ? 'Edit Slack Integration' : 'Configure Slack Integration'}
+              </h3>
+              {isConnected && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Update your preferences or disconnect
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -263,20 +274,37 @@ export function SlackConfigModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!webhookUrl || !channelName}
-            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Save Configuration
-          </button>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div>
+            {isConnected && onDisconnect && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to disconnect Slack? You will stop receiving notifications.')) {
+                    onDisconnect();
+                    onClose();
+                  }
+                }}
+                className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors font-medium"
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!webhookUrl || !channelName}
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isConnected ? 'Save Changes' : 'Save Configuration'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
