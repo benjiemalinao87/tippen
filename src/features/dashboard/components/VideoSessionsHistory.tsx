@@ -15,6 +15,8 @@ interface VideoSession {
   connection_time_seconds: number | null;
   is_qualified_lead: number;
   lead_quality_score: number | null;
+  lead_quality: string | null;
+  notes: string | null;
 }
 
 export function VideoSessionsHistory() {
@@ -79,6 +81,23 @@ export function VideoSessionsHistory() {
         return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
       default:
         return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+    }
+  };
+
+  const getLeadQualityColor = (quality: string | null) => {
+    if (!quality) return '';
+
+    switch (quality.toLowerCase()) {
+      case 'hot':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      case 'warm':
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
+      case 'cold':
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+      case 'not-qualified':
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+      default:
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400';
     }
   };
 
@@ -166,6 +185,9 @@ export function VideoSessionsHistory() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Lead Quality
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Notes
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -206,10 +228,26 @@ export function VideoSessionsHistory() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {session.is_qualified_lead ? (
-                      <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                        Qualified {session.lead_quality_score ? `(${session.lead_quality_score}/5)` : ''}
-                      </span>
+                    {session.lead_quality ? (
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${getLeadQualityColor(session.lead_quality)}`}>
+                          {session.lead_quality.charAt(0).toUpperCase() + session.lead_quality.slice(1).replace('-', ' ')}
+                        </span>
+                        {session.lead_quality_score && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            ({session.lead_quality_score}/5)
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {session.notes ? (
+                      <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={session.notes}>
+                        {session.notes}
+                      </div>
                     ) : (
                       <span className="text-sm text-gray-400 dark:text-gray-500">--</span>
                     )}

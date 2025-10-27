@@ -126,6 +126,11 @@ export default {
       return handleGetVideoSessions(request, env, corsHeaders, url);
     }
 
+    // Route: Save video call feedback
+    if (url.pathname === '/api/video-calls/feedback' && request.method === 'POST') {
+      return handleSaveVideoCallFeedback(request, env, corsHeaders);
+    }
+
     // Route: User signup
     if (url.pathname === '/api/auth/signup' && request.method === 'POST') {
       return handleSignupRequest(request, env, corsHeaders);
@@ -694,7 +699,9 @@ async function handleGetVideoSessions(
         duration_seconds,
         connection_time_seconds,
         is_qualified_lead,
-        lead_quality_score
+        lead_quality_score,
+        lead_quality,
+        notes
       FROM video_calls
       WHERE api_key = ?
     `;
@@ -721,6 +728,82 @@ async function handleGetVideoSessions(
     );
   } catch (error: any) {
     console.error('Error fetching video sessions:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle save video call feedback
+ */
+async function handleSaveVideoCallFeedback(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const data = await request.json() as any;
+    const { apiKey, sessionId, leadQuality, leadQualityScore, notes, isQualifiedLead } = data;
+
+    if (!apiKey || !sessionId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: apiKey and sessionId' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Update video_calls with feedback
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (leadQuality) {
+      updates.push('lead_quality = ?');
+      params.push(leadQuality);
+    }
+
+    if (leadQualityScore !== undefined && leadQualityScore !== null) {
+      updates.push('lead_quality_score = ?');
+      params.push(leadQualityScore);
+    }
+
+    if (notes !== undefined) {
+      updates.push('notes = ?');
+      params.push(notes);
+    }
+
+    if (isQualifiedLead !== undefined) {
+      updates.push('is_qualified_lead = ?');
+      params.push(isQualifiedLead ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No feedback data provided' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Add sessionId and apiKey to params for WHERE clause
+    params.push(sessionId, apiKey);
+
+    const query = `
+      UPDATE video_calls
+      SET ${updates.join(', ')}
+      WHERE session_id = ? AND api_key = ?
+    `;
+
+    await env.DB.prepare(query).bind(...params).run();
+
+    console.log(`[Feedback] Saved feedback for session ${sessionId}`);
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Feedback saved successfully' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error saving video call feedback:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

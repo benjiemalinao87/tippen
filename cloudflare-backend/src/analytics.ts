@@ -75,6 +75,26 @@ export async function updateVideoCallStatus(
   }
   if (status === 'completed' && !additionalData?.ended_at) {
     updates.push('ended_at = CURRENT_TIMESTAMP');
+
+    // Calculate duration if not provided
+    if (additionalData?.duration_seconds === undefined) {
+      // Get the connected_at timestamp to calculate duration
+      const existingCall = await db
+        .prepare('SELECT connected_at FROM video_calls WHERE session_id = ?')
+        .bind(session_id)
+        .first();
+
+      if (existingCall && existingCall.connected_at) {
+        const connectedAt = new Date(existingCall.connected_at as string);
+        const endedAt = new Date();
+        const durationSeconds = Math.floor((endedAt.getTime() - connectedAt.getTime()) / 1000);
+
+        updates.push('duration_seconds = ?');
+        bindings.push(durationSeconds);
+
+        console.log(`[Analytics] Calculated duration for ${session_id}: ${durationSeconds}s`);
+      }
+    }
   }
 
   if (additionalData?.connected_at) {

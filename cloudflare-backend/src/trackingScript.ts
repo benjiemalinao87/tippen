@@ -341,6 +341,29 @@ export const TRACKING_SCRIPT = `/**
       } catch (error) {
         console.error('[Tippen] Failed to update video status:', error);
       }
+
+      // Update close button to end the call properly when video is active
+      closeBtn.onclick = async () => {
+        document.body.removeChild(videoContainer);
+        sendVisitorPing('video_ended');
+
+        // Update video session status to 'completed' and calculate duration
+        try {
+          await fetch(\`\${backendUrl}/api/visitors/video-status\`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              apiKey,
+              visitorId,
+              videoData: { sessionId },
+              status: 'completed'
+            })
+          });
+          console.log('[Tippen] Video session marked as completed');
+        } catch (error) {
+          console.error('[Tippen] Failed to update video status:', error);
+        }
+      };
     };
   }
 

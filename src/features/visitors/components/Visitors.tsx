@@ -10,6 +10,7 @@ import { VisitorTable } from './VisitorTable';
 import { VisitorDetailsModal } from './VisitorDetailsModal';
 import { DateRangePicker, type DateRangeType } from './DateRangePicker';
 import { VideoSessionsHistory } from '../../dashboard/components/VideoSessionsHistory';
+import { VideoCallFeedbackModal, type CallFeedback } from './VideoCallFeedbackModal';
 import { slackService } from '../../../services/slackService';
 import { getVisitorAnalytics, type VisitorAnalytics } from '../../../services/dashboardApi';
 
@@ -193,6 +194,8 @@ export function Visitors() {
   const [videoSession, setVideoSession] = useState<VideoSession | null>(null);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'waiting'>('connecting');
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [pendingFeedbackSession, setPendingFeedbackSession] = useState<{ sessionId: string; company: string } | null>(null);
   const previousVisitorCountRef = useRef<number>(0);
   const [hasCheckedUrlParam, setHasCheckedUrlParam] = useState(false);
 
@@ -371,6 +374,58 @@ export function Visitors() {
 
   // Handle end video call
   const handleEndCall = () => {
+    if (videoSession && activeVisitor) {
+      // Store session info for feedback
+      setPendingFeedbackSession({
+        sessionId: videoSession.sessionId,
+        company: activeVisitor.company
+      });
+      setShowFeedbackModal(true);
+    } else {
+      // No session, just close
+      setActiveCall(null);
+      setVideoSession(null);
+      setCallStatus('connecting');
+    }
+  };
+
+  // Handle feedback submission
+  const handleFeedbackSubmit = async (feedback: CallFeedback) => {
+    if (!pendingFeedbackSession) return;
+
+    try {
+      const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
+                        'https://tippen-backend.benjiemalinao879557.workers.dev';
+      const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+
+      await fetch(`${backendUrl}/api/video-calls/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey,
+          sessionId: pendingFeedbackSession.sessionId,
+          leadQuality: feedback.leadQuality,
+          leadQualityScore: feedback.leadQualityScore,
+          notes: feedback.notes,
+          isQualifiedLead: feedback.leadQuality === 'hot' || feedback.leadQuality === 'warm'
+        })
+      });
+
+      console.log('Call feedback saved successfully');
+    } catch (error) {
+      console.error('Failed to save call feedback:', error);
+    } finally {
+      // Close everything
+      handleSkipFeedback();
+    }
+  };
+
+  // Handle skip feedback
+  const handleSkipFeedback = () => {
+    setShowFeedbackModal(false);
+    setPendingFeedbackSession(null);
     setActiveCall(null);
     setVideoSession(null);
     setCallStatus('connecting');
@@ -525,6 +580,16 @@ export function Visitors() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Video Call Feedback Modal */}
+      {showFeedbackModal && pendingFeedbackSession && (
+        <VideoCallFeedbackModal
+          sessionId={pendingFeedbackSession.sessionId}
+          company={pendingFeedbackSession.company}
+          onSubmit={handleFeedbackSubmit}
+          onSkip={handleSkipFeedback}
+        />
       )}
     </div>
   );
