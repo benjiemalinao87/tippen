@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Moon, Sun, Users, Settings } from 'lucide-react';
+import { BarChart3, Calendar, Moon, Sun, Users, Settings, LogOut } from 'lucide-react';
 import { PerformanceDashboard } from './features/dashboard';
 import { Visitors } from './features/visitors';
 import { Settings as SettingsPage } from './features/settings';
@@ -58,6 +58,33 @@ function App() {
 
   const toggleDarkMode = () => {
     setDarkMode(prev => !prev);
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Call logout API endpoint
+      const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL
+        ?.replace('wss://', 'https://')
+        .replace('ws://', 'http://')
+        .replace('/ws/dashboard', '') || 'http://localhost:8787';
+
+      await fetch(`${BACKEND_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('tippen_auth_token')}`
+        }
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage
+      localStorage.removeItem('tippen_auth_token');
+      localStorage.removeItem('tippen_user');
+
+      // Redirect to login page
+      window.location.href = '/login';
+    }
   };
 
   const navigateTo = (view: View) => {
@@ -188,15 +215,29 @@ function App() {
         </div>
       </main>
 
-      {/* Floating Dark Mode Toggle */}
-      <button
-        onClick={toggleDarkMode}
-        className="fixed bottom-6 right-6 p-3 rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all duration-200 z-50"
-        aria-label="Toggle dark mode"
-        type="button"
-      >
-        {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-      </button>
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="p-3 rounded-full bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all duration-200"
+          aria-label="Logout"
+          type="button"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+
+        {/* Dark Mode Toggle */}
+        <button
+          onClick={toggleDarkMode}
+          className="p-3 rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 hover:scale-110 transition-all duration-200"
+          aria-label="Toggle dark mode"
+          type="button"
+        >
+          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+      </div>
     </div>
   );
 }
