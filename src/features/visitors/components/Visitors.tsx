@@ -315,8 +315,8 @@ export function Visitors() {
 
         // Send video invite to visitor's browser via WebSocket
         try {
-          await sendVideoInvite(visitor.visitorId, data.urls.guest);
-          console.log('Video invite sent to visitor');
+          await sendVideoInvite(visitor.visitorId, data.urls.guest, data.sessionId);
+          console.log('Video invite sent to visitor with sessionId:', data.sessionId);
         } catch (error) {
           console.error('Failed to send video invite:', error);
         }

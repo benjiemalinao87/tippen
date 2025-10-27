@@ -131,8 +131,8 @@ export const TRACKING_SCRIPT = `/**
           console.log('[Tippen] WebSocket message received:', data);
 
           if (data.type === 'VIDEO_INVITE' && data.guestUrl) {
-            console.log('[Tippen] Video invite received, showing popup');
-            showVideoCallPopup(data.guestUrl);
+            console.log('[Tippen] Video invite received with sessionId:', data.sessionId);
+            showVideoCallPopup(data.guestUrl, data.sessionId, data.visitorId);
           }
         } catch (error) {
           console.error('[Tippen] Error parsing WebSocket message:', error);
@@ -156,7 +156,7 @@ export const TRACKING_SCRIPT = `/**
   connectWebSocket();
 
   // Show video call popup (chat widget style in bottom right corner)
-  function showVideoCallPopup(guestUrl) {
+  function showVideoCallPopup(guestUrl, sessionId, visitorId) {
     const videoContainer = document.createElement('div');
     videoContainer.id = 'tippen-video-modal';
     videoContainer.style.cssText = \`
@@ -282,13 +282,30 @@ export const TRACKING_SCRIPT = `/**
     document.body.appendChild(videoContainer);
 
     // Handle Reject button
-    document.getElementById('tippen-reject-btn').onclick = () => {
+    document.getElementById('tippen-reject-btn').onclick = async () => {
       document.body.removeChild(videoContainer);
       sendVisitorPing('video_rejected');
+
+      // Update video session status to 'declined'
+      try {
+        await fetch(\`\${backendUrl}/api/visitors/video-status\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey,
+            visitorId,
+            videoData: { sessionId },
+            status: 'declined'
+          })
+        });
+        console.log('[Tippen] Video session marked as declined');
+      } catch (error) {
+        console.error('[Tippen] Failed to update video status:', error);
+      }
     };
 
     // Handle Join button
-    document.getElementById('tippen-join-btn').onclick = () => {
+    document.getElementById('tippen-join-btn').onclick = async () => {
       // Remove invitation prompt
       invitationPrompt.remove();
 
@@ -307,6 +324,23 @@ export const TRACKING_SCRIPT = `/**
 
       videoContainer.appendChild(iframe);
       sendVisitorPing('video_accepted');
+
+      // Update video session status to 'accepted'
+      try {
+        await fetch(\`\${backendUrl}/api/visitors/video-status\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey,
+            visitorId,
+            videoData: { sessionId },
+            status: 'accepted'
+          })
+        });
+        console.log('[Tippen] Video session marked as accepted/connected');
+      } catch (error) {
+        console.error('[Tippen] Failed to update video status:', error);
+      }
     };
   }
 

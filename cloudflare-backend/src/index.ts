@@ -454,7 +454,7 @@ async function handleSendVideoInvite(
 ): Promise<Response> {
   try {
     const data = await request.json() as any;
-    const { apiKey, visitorId, guestUrl } = data;
+    const { apiKey, visitorId, guestUrl, sessionId } = data;
 
     // Get Durable Object
     const id = env.VISITOR_COORDINATOR.idFromName(apiKey);
@@ -467,6 +467,7 @@ async function handleSendVideoInvite(
         type: 'SEND_VIDEO_INVITE',
         visitorId,
         guestUrl,
+        sessionId,  // Pass sessionId to Durable Object
       }),
     });
 

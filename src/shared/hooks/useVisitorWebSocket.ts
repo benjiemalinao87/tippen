@@ -26,7 +26,7 @@ interface WebSocketMessage {
 interface UseVisitorWebSocketReturn {
   visitors: Visitor[];
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
-  sendVideoInvite: (visitorId: string, guestUrl: string) => Promise<void>;
+  sendVideoInvite: (visitorId: string, guestUrl: string, sessionId: string) => Promise<void>;
   refreshVisitors: () => void;
 }
 
@@ -188,7 +188,7 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
     }
   }, []);
 
-  const sendVideoInvite = useCallback(async (visitorId: string, guestUrl: string): Promise<void> => {
+  const sendVideoInvite = useCallback(async (visitorId: string, guestUrl: string, sessionId: string): Promise<void> => {
     try {
       // Get user's API key
       const apiKey = getUserApiKey();
@@ -205,6 +205,7 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
           apiKey,  // ← Use user's API key for multi-tenant isolation
           visitorId,
           guestUrl,
+          sessionId,  // ← Add sessionId so visitor can update status
         }),
       });
 

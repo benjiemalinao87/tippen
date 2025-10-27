@@ -119,7 +119,7 @@ export class VisitorCoordinator {
       if (data.type === 'NEW_VISITOR') {
         await this.handleNewVisitor(data.visitor, data.event, data.website);
       } else if (data.type === 'SEND_VIDEO_INVITE') {
-        await this.handleSendVideoInvite(data.visitorId, data.guestUrl);
+        await this.handleSendVideoInvite(data.visitorId, data.guestUrl, data.sessionId);
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -170,7 +170,7 @@ export class VisitorCoordinator {
   /**
    * Handle sending video invite to visitor
    */
-  private async handleSendVideoInvite(visitorId: string, guestUrl: string) {
+  private async handleSendVideoInvite(visitorId: string, guestUrl: string, sessionId: string) {
     const visitor = this.visitors.get(visitorId);
 
     if (!visitor) {
@@ -199,8 +199,9 @@ export class VisitorCoordinator {
           type: 'VIDEO_INVITE',
           guestUrl,
           visitorId,
+          sessionId,  // Include sessionId so visitor can update status
         }));
-        console.log('[VisitorCoordinator] VIDEO_INVITE sent successfully');
+        console.log('[VisitorCoordinator] VIDEO_INVITE sent successfully with sessionId:', sessionId);
       } catch (error) {
         console.error('[VisitorCoordinator] Error sending video invite to visitor:', error);
       }
@@ -223,8 +224,9 @@ export class VisitorCoordinator {
               type: 'VIDEO_INVITE',
               guestUrl,
               visitorId,
+              sessionId,  // Include sessionId
             }));
-            console.log('[VisitorCoordinator] VIDEO_INVITE sent via fallback method');
+            console.log('[VisitorCoordinator] VIDEO_INVITE sent via fallback method with sessionId:', sessionId);
             break;
           }
         } catch (error) {
