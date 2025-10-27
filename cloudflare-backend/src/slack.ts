@@ -180,7 +180,7 @@ export async function sendNewVisitorNotification(
                 emoji: true
               },
               style: 'primary',
-              url: `https://tippen.pages.dev/visitors?visitorId=${data.visitorId}`,
+              url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
               action_id: 'request_video_call'
             },
             {
@@ -190,7 +190,7 @@ export async function sendNewVisitorNotification(
                 text: '👁️ View Details',
                 emoji: true
               },
-              url: `https://tippen.pages.dev/visitors?visitorId=${data.visitorId}`,
+              url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
               action_id: 'view_details'
             }
           ]
