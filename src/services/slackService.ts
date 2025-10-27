@@ -2,6 +2,8 @@ interface SlackConfig {
   webhookUrl: string;
   channelName: string;
   enabled: boolean;
+  notifyNewVisitors?: boolean;
+  notifyReturningVisitors?: boolean;
 }
 
 interface VisitorData {
@@ -11,6 +13,7 @@ interface VisitorData {
   staff: number;
   lastSignedRole: string;
   lastActivity: string;
+  isReturning?: boolean;
 }
 
 interface VideoCallData {
@@ -34,8 +37,20 @@ class SlackService {
     }
   }
 
-  public async setConfig(webhookUrl: string, channelName: string, enabled: boolean = true) {
-    this.config = { webhookUrl, channelName, enabled };
+  public async setConfig(
+    webhookUrl: string,
+    channelName: string,
+    enabled: boolean = true,
+    notifyNewVisitors: boolean = true,
+    notifyReturningVisitors: boolean = true
+  ) {
+    this.config = {
+      webhookUrl,
+      channelName,
+      enabled,
+      notifyNewVisitors,
+      notifyReturningVisitors
+    };
     localStorage.setItem('slack_config', JSON.stringify(this.config));
 
     // Sync with backend
@@ -58,7 +73,9 @@ class SlackService {
               apiKey: user.apiKey,
               webhookUrl,
               channelName,
-              enabled
+              enabled,
+              notifyNewVisitors,
+              notifyReturningVisitors
             })
           });
 
@@ -85,15 +102,33 @@ class SlackService {
       return false;
     }
 
+    // Check notification preferences
+    const isReturning = visitor.isReturning || false;
+    const notifyNewVisitors = this.config.notifyNewVisitors ?? true; // Default to true
+    const notifyReturningVisitors = this.config.notifyReturningVisitors ?? true; // Default to true
+
+    if (isReturning && !notifyReturningVisitors) {
+      console.log('Slack notification skipped for returning visitor (disabled in preferences)');
+      return false;
+    }
+
+    if (!isReturning && !notifyNewVisitors) {
+      console.log('Slack notification skipped for new visitor (disabled in preferences)');
+      return false;
+    }
+
     try {
+      const headerText = isReturning ? '🔁 Returning Visitor on Your Website' : '🆕 New Visitor on Your Website';
+      const messageText = isReturning ? `🔁 Returning Visitor: ${visitor.company}` : `🆕 New Visitor Detected: ${visitor.company}`;
+
       const message = {
-        text: `🆕 New Visitor Detected: ${visitor.company}`,
+        text: messageText,
         blocks: [
           {
             type: 'header',
             text: {
               type: 'plain_text',
-              text: '🆕 New Visitor on Your Website',
+              text: headerText,
               emoji: true
             }
           },

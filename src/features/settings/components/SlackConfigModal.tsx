@@ -4,9 +4,11 @@ import { X, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
 interface SlackConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (webhookUrl: string, channelName: string) => void;
+  onSave: (webhookUrl: string, channelName: string, notifyNewVisitors: boolean, notifyReturningVisitors: boolean) => void;
   currentWebhookUrl?: string;
   currentChannelName?: string;
+  currentNotifyNewVisitors?: boolean;
+  currentNotifyReturningVisitors?: boolean;
 }
 
 export function SlackConfigModal({
@@ -14,10 +16,14 @@ export function SlackConfigModal({
   onClose,
   onSave,
   currentWebhookUrl = '',
-  currentChannelName = ''
+  currentChannelName = '',
+  currentNotifyNewVisitors = true,
+  currentNotifyReturningVisitors = true
 }: SlackConfigModalProps) {
   const [webhookUrl, setWebhookUrl] = useState(currentWebhookUrl);
   const [channelName, setChannelName] = useState(currentChannelName);
+  const [notifyNewVisitors, setNotifyNewVisitors] = useState(currentNotifyNewVisitors);
+  const [notifyReturningVisitors, setNotifyReturningVisitors] = useState(currentNotifyReturningVisitors);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
 
@@ -63,7 +69,7 @@ export function SlackConfigModal({
 
   const handleSave = () => {
     if (webhookUrl && channelName) {
-      onSave(webhookUrl, channelName);
+      onSave(webhookUrl, channelName, notifyNewVisitors, notifyReturningVisitors);
       onClose();
     }
   };
@@ -168,6 +174,48 @@ export function SlackConfigModal({
                 placeholder="#visitor-notifications"
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
+            </div>
+
+            {/* Notification Preferences */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Notification Preferences
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyNewVisitors}
+                    onChange={(e) => setNotifyNewVisitors(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
+                  />
+                  <div>
+                    <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                      🆕 New Visitors
+                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Get notified when first-time visitors land on your website
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyReturningVisitors}
+                    onChange={(e) => setNotifyReturningVisitors(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
+                  />
+                  <div>
+                    <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                      🔁 Returning Visitors
+                    </span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Get notified when visitors return to your website
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
 

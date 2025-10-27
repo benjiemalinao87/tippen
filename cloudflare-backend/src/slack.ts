@@ -7,6 +7,8 @@ export interface SlackConfig {
   webhookUrl: string;
   channelName: string;
   enabled: boolean;
+  notifyNewVisitors?: boolean;
+  notifyReturningVisitors?: boolean;
 }
 
 export interface VisitorNotificationData {
@@ -24,6 +26,7 @@ export interface VisitorNotificationData {
   timezone?: string;
   url?: string;
   ip?: string;
+  isReturning?: boolean;
 }
 
 export interface VideoCallNotificationData {
@@ -105,14 +108,18 @@ export async function sendNewVisitorNotification(
   data: VisitorNotificationData
 ): Promise<boolean> {
   try {
+    const isReturning = data.isReturning || false;
+    const headerText = isReturning ? '🔁 Returning Visitor on Your Website' : '🆕 New Visitor on Your Website';
+    const messageText = isReturning ? `🔁 Returning Visitor: ${data.company}` : `🆕 New Visitor Detected: ${data.company}`;
+
     const message = {
-      text: `🆕 New Visitor Detected: ${data.company}`,
+      text: messageText,
       blocks: [
         {
           type: 'header',
           text: {
             type: 'plain_text',
-            text: '🆕 New Visitor on Your Website',
+            text: headerText,
             emoji: true
           }
         },

@@ -71,7 +71,12 @@ export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('tracking');
   const [integrationsState, setIntegrationsState] = useState<Integration[]>(integrations);
   const [showSlackModal, setShowSlackModal] = useState(false);
-  const [slackConfig, setSlackConfig] = useState<{ webhookUrl: string; channelName: string } | null>(null);
+  const [slackConfig, setSlackConfig] = useState<{
+    webhookUrl: string;
+    channelName: string;
+    notifyNewVisitors?: boolean;
+    notifyReturningVisitors?: boolean;
+  } | null>(null);
   const [copiedScript, setCopiedScript] = useState(false);
   const [apiKey, setApiKey] = useState('your_api_key_here');
   const [orgApiKey, setOrgApiKey] = useState<string | null>(null); // Organization API key (primary)
@@ -113,7 +118,12 @@ export function Settings() {
 
           if (data.success && data.config) {
             console.log('[Settings] Loaded Slack config from D1:', data.config);
-            setSlackConfig({ webhookUrl: data.config.webhookUrl, channelName: data.config.channelName });
+            setSlackConfig({
+              webhookUrl: data.config.webhookUrl,
+              channelName: data.config.channelName,
+              notifyNewVisitors: data.config.notifyNewVisitors ?? true,
+              notifyReturningVisitors: data.config.notifyReturningVisitors ?? true
+            });
 
             // Update Slack integration status
             setIntegrationsState(prev =>
@@ -133,7 +143,12 @@ export function Settings() {
           // Fallback to localStorage
           const localConfig = slackService.getConfig();
           if (localConfig) {
-            setSlackConfig({ webhookUrl: localConfig.webhookUrl, channelName: localConfig.channelName });
+            setSlackConfig({
+              webhookUrl: localConfig.webhookUrl,
+              channelName: localConfig.channelName,
+              notifyNewVisitors: localConfig.notifyNewVisitors ?? true,
+              notifyReturningVisitors: localConfig.notifyReturningVisitors ?? true
+            });
             setIntegrationsState(prev =>
               prev.map(integration =>
                 integration.id === 'slack'
@@ -160,7 +175,7 @@ export function Settings() {
       const slackIntegration = integrationsState.find(i => i.id === 'slack');
       if (slackIntegration?.connected) {
         // Disconnect Slack - save to D1 database
-        await slackService.setConfig('', '', false);
+        await slackService.setConfig('', '', false, false, false);
         setSlackConfig(null);
         setIntegrationsState(prev =>
           prev.map(integration =>
@@ -185,12 +200,17 @@ export function Settings() {
     }
   };
 
-  const handleSlackSave = async (webhookUrl: string, channelName: string) => {
+  const handleSlackSave = async (
+    webhookUrl: string,
+    channelName: string,
+    notifyNewVisitors: boolean,
+    notifyReturningVisitors: boolean
+  ) => {
     // Save to backend D1 database
-    await slackService.setConfig(webhookUrl, channelName, true);
+    await slackService.setConfig(webhookUrl, channelName, true, notifyNewVisitors, notifyReturningVisitors);
 
     // Update local state
-    setSlackConfig({ webhookUrl, channelName });
+    setSlackConfig({ webhookUrl, channelName, notifyNewVisitors, notifyReturningVisitors });
     setIntegrationsState(prev =>
       prev.map(integration =>
         integration.id === 'slack'
@@ -692,6 +712,8 @@ export function Settings() {
         onSave={handleSlackSave}
         currentWebhookUrl={slackConfig?.webhookUrl}
         currentChannelName={slackConfig?.channelName}
+        currentNotifyNewVisitors={slackConfig?.notifyNewVisitors ?? true}
+        currentNotifyReturningVisitors={slackConfig?.notifyReturningVisitors ?? true}
       />
     </div>
   );

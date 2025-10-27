@@ -271,13 +271,17 @@ export function Visitors() {
       const newVisitors = visitors.slice(previousVisitorCountRef.current);
       newVisitors.forEach(visitor => {
         if (slackService.isEnabled()) {
+          // Determine if visitor is returning based on page views
+          const isReturning = (visitor.pageViews || 0) > 1;
+
           slackService.sendNewVisitorNotification({
             id: visitor.id || visitor.visitorId,
             company: visitor.company,
             revenue: visitor.revenue || 'N/A',
             staff: visitor.staff || 0,
             lastSignedRole: visitor.lastRole,
-            lastActivity: visitor.lastActivity || new Date().toLocaleString()
+            lastActivity: visitor.lastActivity || new Date().toLocaleString(),
+            isReturning
           });
         }
       });
