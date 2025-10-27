@@ -960,7 +960,14 @@ async function handleSaveSlackConfig(
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   try {
-    const { apiKey, webhookUrl, channelName, enabled } = await request.json() as any;
+    const {
+      apiKey,
+      webhookUrl,
+      channelName,
+      enabled,
+      notifyNewVisitors,
+      notifyReturningVisitors
+    } = await request.json() as any;
 
     if (!apiKey || !webhookUrl) {
       return new Response(
@@ -972,7 +979,9 @@ async function handleSaveSlackConfig(
     const success = await saveSlackConfig(env.DB, apiKey, {
       webhookUrl,
       channelName: channelName || '',
-      enabled: enabled !== false
+      enabled: enabled !== false,
+      notifyNewVisitors: notifyNewVisitors !== false, // Default to true
+      notifyReturningVisitors: notifyReturningVisitors !== false // Default to true
     });
 
     return new Response(
