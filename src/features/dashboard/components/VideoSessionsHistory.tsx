@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Video, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { getUserApiKey } from '../../../shared/utils/auth';
 
 interface VideoSession {
   id: number;
@@ -31,20 +32,31 @@ export function VideoSessionsHistory() {
   const fetchSessions = async () => {
     try {
       setLoading(true);
+
+      // Get authenticated user's API key for multi-tenant isolation
+      const apiKey = getUserApiKey();
+
+      if (!apiKey) {
+        console.error('[VideoSessions] No API key found - user not authenticated');
+        setLoading(false);
+        return;
+      }
+
       const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
         ?.replace('ws://', 'http://')
         .replace('wss://', 'https://')
         .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
 
-      const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
-
       const url = `${backendUrl}/api/analytics/video-sessions?api_key=${apiKey}&limit=50${filterStatus !== 'all' ? `&status=${filterStatus}` : ''}`;
+
+      console.log('[VideoSessions] Fetching sessions with API key:', apiKey.substring(0, 20) + '...');
 
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setSessions(data.sessions || []);
+        console.log('[VideoSessions] Loaded', data.sessions?.length || 0, 'sessions');
       }
     } catch (error) {
       console.error('Failed to fetch video sessions:', error);

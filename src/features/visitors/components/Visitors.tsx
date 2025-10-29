@@ -13,6 +13,7 @@ import { VideoSessionsHistory } from '../../dashboard/components/VideoSessionsHi
 import { VideoCallFeedbackModal, type CallFeedback } from './VideoCallFeedbackModal';
 import { slackService } from '../../../services/slackService';
 import { getVisitorAnalytics, type VisitorAnalytics } from '../../../services/dashboardApi';
+import { getUserApiKey } from '../../../shared/utils/auth';
 
 // Extended visitor interface for display purposes
 interface Visitor extends VisitorType {
@@ -330,10 +331,15 @@ export function Visitors() {
 
         // Save video session details to D1 database
         try {
-          const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') || 
+          const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
                            'https://tippen-backend.benjiemalinao879557.workers.dev';
-          const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
-          
+          const apiKey = getUserApiKey();
+
+          if (!apiKey) {
+            console.error('[Visitors] No API key found - user not authenticated');
+            return;
+          }
+
           await fetch(`${backendUrl}/api/visitors/video-status`, {
             method: 'POST',
             headers: {
@@ -388,7 +394,12 @@ export function Visitors() {
 
         const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
                           'https://tippen-backend.benjiemalinao879557.workers.dev';
-        const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+        const apiKey = getUserApiKey();
+
+        if (!apiKey) {
+          console.error('[Admin] No API key found - user not authenticated');
+          return;
+        }
 
         console.log('[Admin] Sending completion status to backend...');
         const response = await fetch(`${backendUrl}/api/visitors/video-status`, {
@@ -437,7 +448,12 @@ export function Visitors() {
     try {
       const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
                         'https://tippen-backend.benjiemalinao879557.workers.dev';
-      const apiKey = import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+      const apiKey = getUserApiKey();
+
+      if (!apiKey) {
+        console.error('[Feedback] No API key found - user not authenticated');
+        return;
+      }
 
       await fetch(`${backendUrl}/api/video-calls/feedback`, {
         method: 'POST',
