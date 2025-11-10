@@ -29,7 +29,8 @@ import { getSlackConfig, saveSlackConfig, sendNewVisitorNotification } from './s
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
-  CLEARBIT_API_KEY: string;
+  CLEARBIT_API_KEY: string; // Deprecated - kept for backward compatibility
+  ENRICH_API_KEY: string; // Enrich.so JWT token
   DB: D1Database;
 }
 
@@ -333,6 +334,14 @@ async function handleVisitorTracking(
 
 /**
  * Enrich visitor data with company information using IP lookup
+ * Uses Enrich.so IP-to-Company API with intelligent caching
+ * Docs: https://apis.enrich.so/ip-to-company-23407946e0.md
+ *
+ * CACHING STRATEGY:
+ * - First lookup: Call API (1 credit) → Store in cache
+ * - Subsequent lookups: Use cache (0 credits) → Update stats
+ * - Cache TTL: 30 days for success, 1 day for failures
+ * - Expected savings: 70%+ reduction in API calls
  */
 async function enrichVisitorData(
   visitor: any,
@@ -341,31 +350,186 @@ async function enrichVisitorData(
 ): Promise<any> {
   const ip = request.headers.get('CF-Connecting-IP') || '';
 
-  // Use Clearbit or similar service for company enrichment
-  try {
-    const response = await fetch(`https://company.clearbit.com/v1/domains/find?ip=${ip}`, {
-      headers: {
-        Authorization: `Bearer ${env.CLEARBIT_API_KEY}`,
-      },
-    });
+  // Skip enrichment for localhost/private IPs
+  if (!ip || ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
+    console.log(`[Enrichment] Skipping private IP: ${ip}`);
+    return buildFallbackVisitor(visitor, ip);
+  }
 
-    if (response.ok) {
-      const companyData = await response.json() as any;
+  // ========================================
+  // STEP 1: Check cache first (CRITICAL for cost savings!)
+  // ========================================
+  try {
+    const cached = await env.DB
+      .prepare(`
+        SELECT * FROM enrichment_cache
+        WHERE ip_address = ?
+          AND (expires_at IS NULL OR expires_at > datetime('now'))
+      `)
+      .bind(ip)
+      .first();
+
+    if (cached) {
+      console.log(`[Cache HIT] ✅ Using cached data for IP: ${ip} (Company: ${cached.company_name})`);
+
+      // Update cache usage statistics
+      await env.DB
+        .prepare('UPDATE enrichment_cache SET lookup_count = lookup_count + 1 WHERE ip_address = ?')
+        .bind(ip)
+        .run();
+
+      // Return cached data with enrichment flag
       return {
         ...visitor,
         ip,
-        company: companyData.name || 'Unknown',
-        revenue: companyData.metrics?.estimatedAnnualRevenue || null,
-        staff: companyData.metrics?.employees || null,
-        industry: companyData.category?.industry || null,
-        domain: companyData.domain || null,
+        company: cached.company_name || 'Unknown Company',
+        domain: cached.company_domain || null,
+        industry: cached.industry || null,
+        revenue: cached.revenue || null,
+        staff: cached.employees || null,
+        location: cached.location || visitor.timezone || 'Unknown Location',
+        deviceType: buildDeviceType(visitor.userAgent),
+        _cached: true, // Flag for tracking
+        _enrichmentSource: 'cache',
+        userAgent: visitor.userAgent,
+        screenResolution: visitor.screenResolution,
+        language: visitor.language,
       };
     }
-  } catch (error) {
-    console.error('Enrichment failed:', error);
+
+    console.log(`[Cache MISS] 🔍 No cached data for IP: ${ip}, calling Enrich.so API`);
+  } catch (cacheError) {
+    console.error('[Cache] Error checking cache:', cacheError);
+    // Continue to API call even if cache check fails
   }
 
-  // Fallback to basic data with useful info
+  // ========================================
+  // STEP 2: Call Enrich.so API (Cache miss)
+  // ========================================
+  const startTime = Date.now();
+
+  try {
+    console.log(`[Enrich.so] Calling API for IP: ${ip}`);
+
+    const response = await fetch(`https://api.enrich.so/v1/api/ip-to-company-lookup?ip=${ip}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${env.ENRICH_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (response.ok) {
+      const companyData = await response.json() as any;
+      console.log(`[Enrich.so] ✅ Success (${responseTime}ms):`, companyData);
+
+      // Extract company data (handle various response formats)
+      const company = companyData.company?.name || companyData.name || null;
+      const domain = companyData.company?.domain || companyData.domain || null;
+      const industry = companyData.company?.industry || companyData.industry || null;
+      const revenue = companyData.company?.revenue || companyData.revenue || null;
+      const employees = companyData.company?.employees || companyData.employees || null;
+      const location = companyData.company?.location || companyData.location || null;
+
+      // ========================================
+      // STEP 3: Store in cache for future use
+      // ========================================
+      try {
+        await env.DB
+          .prepare(`
+            INSERT INTO enrichment_cache (
+              ip_address, company_name, company_domain, industry,
+              revenue, employees, location, raw_response, status,
+              api_response_time_ms, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+30 days'))
+          `)
+          .bind(
+            ip,
+            company,
+            domain,
+            industry,
+            revenue,
+            employees,
+            location,
+            JSON.stringify(companyData), // Store full response for debugging
+            'success',
+            responseTime
+          )
+          .run();
+
+        console.log(`[Cache STORED] 💾 Saved enrichment for IP: ${ip} (expires in 30 days)`);
+      } catch (cacheStoreError) {
+        console.error('[Cache] Failed to store in cache:', cacheStoreError);
+        // Continue anyway - enrichment still succeeded
+      }
+
+      // Return enriched visitor data
+      return {
+        ...visitor,
+        ip,
+        company: company || 'Unknown Company',
+        domain: domain || null,
+        industry: industry || null,
+        revenue: revenue || null,
+        staff: employees || null,
+        location: location || visitor.timezone || 'Unknown Location',
+        deviceType: buildDeviceType(visitor.userAgent),
+        _cached: false, // Fresh API call
+        _enrichmentSource: 'enrich_so',
+        userAgent: visitor.userAgent,
+        screenResolution: visitor.screenResolution,
+        language: visitor.language,
+      };
+    } else {
+      const errorText = await response.text();
+      console.error(`[Enrich.so] API error (${response.status}): ${errorText}`);
+
+      // Store failed lookup in cache (prevent immediate retry)
+      try {
+        await env.DB
+          .prepare(`
+            INSERT INTO enrichment_cache (
+              ip_address, status, error_message, expires_at
+            ) VALUES (?, ?, ?, datetime('now', '+1 day'))
+          `)
+          .bind(ip, response.status === 429 ? 'rate_limited' : 'failed', errorText)
+          .run();
+
+        console.log(`[Cache STORED] ⚠️ Cached failure for IP: ${ip} (retry after 1 day)`);
+      } catch (cacheStoreError) {
+        console.error('[Cache] Failed to store error in cache:', cacheStoreError);
+      }
+    }
+  } catch (error: any) {
+    console.error('[Enrich.so] API call failed:', error);
+
+    // Store error in cache
+    try {
+      await env.DB
+        .prepare(`
+          INSERT INTO enrichment_cache (
+            ip_address, status, error_message, expires_at
+          ) VALUES (?, ?, ?, datetime('now', '+1 day'))
+        `)
+        .bind(ip, 'failed', error.message || 'Unknown error')
+        .run();
+    } catch (cacheStoreError) {
+      console.error('[Cache] Failed to store error:', cacheStoreError);
+    }
+  }
+
+  // ========================================
+  // STEP 4: Fallback if enrichment failed
+  // ========================================
+  return buildFallbackVisitor(visitor, ip);
+}
+
+/**
+ * Build fallback visitor data when enrichment is not available
+ */
+function buildFallbackVisitor(visitor: any, ip: string): any {
   // Extract domain from referrer or current URL
   let companyName = 'Direct Visitor';
 
@@ -385,8 +549,31 @@ async function enrichVisitorData(
     }
   }
 
-  // Parse user agent for device/browser info
-  const ua = visitor.userAgent || '';
+  return {
+    ...visitor,
+    ip,
+    company: companyName,
+    domain: null,
+    industry: null,
+    revenue: null,
+    staff: null,
+    location: visitor.timezone || 'Unknown Location',
+    deviceType: buildDeviceType(visitor.userAgent),
+    lastRole: visitor.lastRole || null,
+    _cached: false,
+    _enrichmentSource: 'fallback',
+    userAgent: visitor.userAgent,
+    screenResolution: visitor.screenResolution,
+    language: visitor.language,
+  };
+}
+
+/**
+ * Parse user agent to extract device and browser info
+ */
+function buildDeviceType(userAgent: string): string {
+  const ua = userAgent || '';
+
   let deviceInfo = 'Unknown Device';
   if (ua.includes('iPhone')) deviceInfo = 'iPhone';
   else if (ua.includes('iPad')) deviceInfo = 'iPad';
@@ -401,19 +588,7 @@ async function enrichVisitorData(
   else if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Edg')) browser = 'Edge';
 
-  return {
-    ...visitor,
-    ip,
-    company: companyName,
-    location: visitor.timezone || 'Unknown Location',
-    deviceType: `${deviceInfo} - ${browser}`,  // Store device info separately
-    lastRole: visitor.lastRole || null,  // Keep actual role from visitor data, or null
-    revenue: null,
-    staff: null,
-    userAgent: visitor.userAgent,
-    screenResolution: visitor.screenResolution,
-    language: visitor.language,
-  };
+  return `${deviceInfo} - ${browser}`;
 }
 
 /**

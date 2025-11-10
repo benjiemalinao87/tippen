@@ -29,47 +29,72 @@ export async function saveVisitorToD1(
       .first();
 
     if (existing) {
-      // Update existing visitor
+      // Update existing visitor (including enriched fields)
       await env.DB.prepare(
-        `UPDATE visitors 
+        `UPDATE visitors
          SET last_seen_at = CURRENT_TIMESTAMP,
              page_views = page_views + 1,
              company = ?,
+             company_domain = ?,
+             industry = ?,
+             revenue = ?,
+             employees = ?,
+             enriched_location = ?,
              location = ?,
              last_role = ?,
-             website = ?
+             website = ?,
+             enrichment_source = ?,
+             is_cached = ?
          WHERE id = ?`
       )
         .bind(
           visitor.company || null,
+          visitor.domain || null,
+          visitor.industry || null,
+          visitor.revenue || null,
+          visitor.staff || null,
           visitor.location || null,
+          visitor.location || null, // Keep location for backward compatibility
           visitor.lastRole || null,
           website || null,
+          visitor._enrichmentSource || 'fallback',
+          visitor._cached ? 1 : 0,
           existing.id
         )
         .run();
 
-      console.log(`[D1] Updated visitor ${visitor.visitorId} - page views: ${(existing.page_views as number) + 1}`);
+      console.log(`[D1] Updated visitor ${visitor.visitorId} - page views: ${(existing.page_views as number) + 1} (source: ${visitor._enrichmentSource})`);
     } else {
-      // Insert new visitor
+      // Insert new visitor with enriched data
       await env.DB.prepare(
         `INSERT INTO visitors
-         (api_key, visitor_id, company, location, last_role, website, page_views, first_seen_at, last_seen_at)
-         VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+         (api_key, visitor_id, company, company_domain, industry, revenue, employees,
+          enriched_location, location, last_role, website, page_views,
+          enrichment_source, is_cached, enriched_at,
+          first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       )
         .bind(
           apiKey,
           visitor.visitorId,
           visitor.company || null,
+          visitor.domain || null,
+          visitor.industry || null,
+          visitor.revenue || null,
+          visitor.staff || null,
           visitor.location || null,
+          visitor.location || null, // Keep location for backward compatibility
           visitor.lastRole || null,
-          website || null
+          website || null,
+          visitor._enrichmentSource || 'fallback',
+          visitor._cached ? 1 : 0,
+          visitor._enrichmentSource === 'enrich_so' || visitor._enrichmentSource === 'cache' ? new Date().toISOString() : null
         )
         .run();
 
-      console.log(`[D1] Inserted new visitor ${visitor.visitorId} from ${visitor.company || 'Unknown'}`);
+      console.log(`[D1] Inserted new visitor ${visitor.visitorId} from ${visitor.company || 'Unknown'} (source: ${visitor._enrichmentSource}, cached: ${visitor._cached})`);
 
-      // Track new visitor event
+      // Track new visitor event with enriched data
       await trackVisitorEvent(env.DB, {
         api_key: apiKey,
         visitor_id: visitor.visitorId,
@@ -77,8 +102,13 @@ export async function saveVisitorToD1(
         page_url: website || null,
         event_data: {
           company: visitor.company,
+          domain: visitor.domain,
+          industry: visitor.industry,
+          revenue: visitor.revenue,
           location: visitor.location,
-          role: visitor.lastRole
+          role: visitor.lastRole,
+          enrichment_source: visitor._enrichmentSource,
+          is_cached: visitor._cached
         }
       });
 

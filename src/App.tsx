@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Moon, Sun, Users, Settings, LogOut } from 'lucide-react';
+import { BarChart3, Calendar, Moon, Sun, Users, Settings, LogOut, Shield } from 'lucide-react';
 import { PerformanceDashboard } from './features/dashboard';
 import { Visitors } from './features/visitors';
 import { Settings as SettingsPage } from './features/settings';
+import { CommandCenter } from './features/command-center';
 import { agentApi } from './lib/api';
 import type { Agent } from './shared/types';
 
-type View = 'dashboard' | 'visitors' | 'settings';
+type View = 'dashboard' | 'visitors' | 'settings' | 'command-center';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('visitors');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
+  const [userRole, setUserRole] = useState<string>('member');
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) {
@@ -26,7 +28,20 @@ function App() {
 
   useEffect(() => {
     loadAgents();
+    loadUserRole();
   }, []);
+
+  const loadUserRole = () => {
+    const userStr = localStorage.getItem('tippen_user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserRole(user.role || 'member');
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -49,6 +64,9 @@ function App() {
     } else if (path.startsWith('/settings')) {
       console.log('[App] Setting initial view to: settings');
       setCurrentView('settings');
+    } else if (path.startsWith('/command-center')) {
+      console.log('[App] Setting initial view to: command-center');
+      setCurrentView('command-center');
     } else {
       // Default to visitors page
       console.log('[App] Setting initial view to: visitors (default)');
@@ -93,7 +111,8 @@ function App() {
     const paths = {
       dashboard: '/',
       visitors: '/visitors',
-      settings: '/settings'
+      settings: '/settings',
+      'command-center': '/command-center'
     };
     window.history.pushState({}, '', paths[view]);
   };
@@ -160,6 +179,19 @@ function App() {
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
+                {userRole === 'saas-owner' && (
+                  <button
+                    onClick={() => navigateTo('command-center')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+                      currentView === 'command-center'
+                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Command Center
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -211,6 +243,10 @@ function App() {
 
         {currentView === 'settings' && (
           <SettingsPage />
+        )}
+
+        {currentView === 'command-center' && (
+          <CommandCenter />
         )}
         </div>
       </main>

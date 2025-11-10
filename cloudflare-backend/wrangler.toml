@@ -27,3 +27,7 @@ vars = { ENVIRONMENT = "development" }
 # Production environment
 [env.production]
 vars = { ENVIRONMENT = "production" }
+
+# Secrets (set via CLI or Cloudflare Dashboard)
+# wrangler secret put ENRICH_API_KEY
+# wrangler secret put CLEARBIT_API_KEY (deprecated)
