@@ -26,6 +26,7 @@ import {
 } from './auth';
 import { TRACKING_SCRIPT } from './trackingScript';
 import { getSlackConfig, saveSlackConfig, sendNewVisitorNotification } from './slack';
+import { handleCommandCenterRequest } from './commandCenter';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -145,6 +146,11 @@ export default {
     // Route: Verify session
     if (url.pathname === '/api/auth/verify' && request.method === 'POST') {
       return handleVerifySession(request, env, corsHeaders);
+    }
+
+    // Route: Command Center (saas-owner only)
+    if (url.pathname === '/api/admin/command-center' && request.method === 'GET') {
+      return handleCommandCenterRequest(request, env, corsHeaders);
     }
 
     // Route: Logout
