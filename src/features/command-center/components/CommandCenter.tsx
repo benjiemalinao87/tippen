@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Building2, Users, DollarSign, Database, TrendingUp, Activity } from 'lucide-react';
 import { OrganizationOverviewTable } from './OrganizationOverviewTable';
+import { OrganizationDetailModal } from './OrganizationDetailModal';
 import { CreditUsageChart } from './CreditUsageChart';
 import { EnrichmentStatsWidget } from './EnrichmentStatsWidget';
 
@@ -22,6 +23,11 @@ interface OrganizationData {
   apiKey: string;
   totalUsers: number;
   totalVisitors: number;
+  totalVideoCalls: number;
+  totalInvites: number;
+  connectedCalls: number;
+  qualifiedLeads: number;
+  avgCallDuration: number;
   creditsUsed: number;
   cacheHits: number;
   lastActivity: string;
@@ -47,6 +53,7 @@ export function CommandCenter() {
   const [stats, setStats] = useState<CommandCenterStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationData | null>(null);
 
   useEffect(() => {
     loadCommandCenterData();
@@ -100,6 +107,11 @@ export function CommandCenter() {
         apiKey: 'demo_api_key',
         totalUsers: 3,
         totalVisitors: 856,
+        totalVideoCalls: 45,
+        totalInvites: 52,
+        connectedCalls: 38,
+        qualifiedLeads: 22,
+        avgCallDuration: 342,
         creditsUsed: 89,
         cacheHits: 312,
         lastActivity: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
@@ -111,6 +123,11 @@ export function CommandCenter() {
         apiKey: 'acme_api_key_123',
         totalUsers: 5,
         totalVisitors: 391,
+        totalVideoCalls: 28,
+        totalInvites: 35,
+        connectedCalls: 21,
+        qualifiedLeads: 15,
+        avgCallDuration: 287,
         creditsUsed: 67,
         cacheHits: 211,
         lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
@@ -271,7 +288,18 @@ export function CommandCenter() {
       <EnrichmentStatsWidget stats={stats.enrichmentStats} />
 
       {/* Organizations Table */}
-      <OrganizationOverviewTable organizations={stats.organizations} />
+      <OrganizationOverviewTable
+        organizations={stats.organizations}
+        onOrganizationClick={(org) => setSelectedOrg(org)}
+      />
+
+      {/* Organization Detail Modal */}
+      {selectedOrg && (
+        <OrganizationDetailModal
+          organization={selectedOrg}
+          onClose={() => setSelectedOrg(null)}
+        />
+      )}
     </div>
   );
 }
