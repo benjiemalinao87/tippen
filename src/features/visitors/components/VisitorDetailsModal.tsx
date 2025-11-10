@@ -1,4 +1,4 @@
-import { X, Globe, MapPin, Monitor, Clock, Eye, User, Link as LinkIcon, Calendar } from 'lucide-react';
+import { X, Globe, MapPin, Monitor, Clock, Eye, User, Link as LinkIcon, Calendar, Sparkles, Database, Building2, DollarSign, Users as UsersIcon, Briefcase } from 'lucide-react';
 import type { Visitor } from '../../../shared/types';
 
 interface VisitorDetailsModalProps {
@@ -8,6 +8,8 @@ interface VisitorDetailsModalProps {
 }
 
 export function VisitorDetailsModal({ visitor, onClose, onStartVideoCall }: VisitorDetailsModalProps) {
+  const isEnriched = visitor.enrichmentSource === 'enrich_so' || visitor.enrichmentSource === 'cache';
+
   const getRoleBadgeColor = (role: string | undefined): string => {
     if (!role) return 'bg-gray-50/80 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
     const roleLower = role.toLowerCase();
@@ -85,6 +87,68 @@ export function VisitorDetailsModal({ visitor, onClose, onStartVideoCall }: Visi
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* Company Intelligence Section (if enriched) */}
+          {isEnriched && (
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-5">
+              <div className="flex items-center gap-2 mb-4">
+                {visitor.isCached ? (
+                  <Database className="w-5 h-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                )}
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Company Intelligence
+                </h3>
+                <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
+                  visitor.isCached
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                }`}>
+                  {visitor.isCached ? '💾 Cached (0 credits)' : '🔍 Fresh (1 credit)'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {visitor.companyDomain && (
+                  <InfoItem
+                    icon={Globe}
+                    label="Company Domain"
+                    value={visitor.companyDomain}
+                    link={visitor.companyDomain}
+                  />
+                )}
+                {visitor.industry && (
+                  <InfoItem
+                    icon={Briefcase}
+                    label="Industry"
+                    value={visitor.industry}
+                  />
+                )}
+                {visitor.revenue && (
+                  <InfoItem
+                    icon={DollarSign}
+                    label="Revenue"
+                    value={visitor.revenue}
+                  />
+                )}
+                {visitor.employees && (
+                  <InfoItem
+                    icon={UsersIcon}
+                    label="Employees"
+                    value={`~${visitor.employees.toLocaleString()}`}
+                  />
+                )}
+                {visitor.enrichedLocation && (
+                  <InfoItem
+                    icon={Building2}
+                    label="HQ Location"
+                    value={visitor.enrichedLocation}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Quick Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4">

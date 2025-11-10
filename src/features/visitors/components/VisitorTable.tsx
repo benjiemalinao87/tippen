@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Phone, Eye } from 'lucide-react';
+import { Users, Phone, Eye, Sparkles, Database, MapPin } from 'lucide-react';
 import type { Visitor } from '../../../shared/types';
 
 interface VisitorTableProps {
@@ -80,6 +80,32 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
     return 'bg-gray-50/80 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
   };
 
+  const getEnrichmentIndicator = (visitor: Visitor) => {
+    const source = visitor.enrichmentSource;
+
+    if (source === 'enrich_so' && visitor.isCached) {
+      return {
+        icon: Database,
+        color: 'text-green-600 dark:text-green-400',
+        tooltip: 'Enriched from cache (0 credits)'
+      };
+    }
+
+    if (source === 'enrich_so') {
+      return {
+        icon: Sparkles,
+        color: 'text-blue-600 dark:text-blue-400',
+        tooltip: 'Freshly enriched (1 credit)'
+      };
+    }
+
+    return {
+      icon: MapPin,
+      color: 'text-gray-400 dark:text-gray-500',
+      tooltip: 'Basic visitor data'
+    };
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
       {/* Header with filters */}
@@ -113,6 +139,15 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
                 Company
               </th>
               <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3 px-4">
+                Industry
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3 px-4">
+                Revenue
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3 px-4">
+                Employees
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3 px-4">
                 Location
               </th>
               <th className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider py-3 px-4">
@@ -132,7 +167,7 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {sortedVisitors.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-center">
+                <td colSpan={9} className="py-8 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="w-12 h-12 text-gray-300 dark:text-gray-600" />
                     <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -145,10 +180,12 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
               sortedVisitors.map((visitor) => {
                 const visitorId = visitor.visitorId || visitor.id || '';
                 const isActiveCall = activeCall === visitorId;
-                
+                const enrichmentIndicator = getEnrichmentIndicator(visitor);
+                const EnrichmentIcon = enrichmentIndicator.icon;
+
                 return (
-                <tr 
-                  key={visitor.visitorId} 
+                <tr
+                  key={visitor.visitorId}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                   onClick={() => onViewDetails(visitor)}
                 >
@@ -160,19 +197,46 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${getStatusColor(visitor.status)}`} />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {visitor.company}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                            {visitor.company}
+                          </p>
+                          <EnrichmentIcon
+                            className={`w-3.5 h-3.5 flex-shrink-0 ${enrichmentIndicator.color}`}
+                            title={enrichmentIndicator.tooltip}
+                          />
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {visitor.website}
+                          {visitor.companyDomain || visitor.website}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td className="py-4 px-4">
                     <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {visitor.location}
+                      {visitor.industry || (
+                        <span className="text-gray-400 dark:text-gray-500 italic">—</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {visitor.revenue || (
+                        <span className="text-gray-400 dark:text-gray-500 italic">—</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {visitor.employees ? `~${visitor.employees.toLocaleString()}` : (
+                        <span className="text-gray-400 dark:text-gray-500 italic">—</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {visitor.enrichedLocation || visitor.location}
                     </span>
                   </td>
                   <td className="py-4 px-4">

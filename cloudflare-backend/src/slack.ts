@@ -27,6 +27,13 @@ export interface VisitorNotificationData {
   url?: string;
   ip?: string;
   isReturning?: boolean;
+  // Enriched company data
+  companyDomain?: string;
+  industry?: string;
+  employees?: number;
+  enrichedLocation?: string;
+  enrichmentSource?: 'enrich_so' | 'cache' | 'fallback';
+  isCached?: boolean;
 }
 
 export interface VideoCallNotificationData {
@@ -109,100 +116,165 @@ export async function sendNewVisitorNotification(
 ): Promise<boolean> {
   try {
     const isReturning = data.isReturning || false;
+    const isEnriched = data.enrichmentSource === 'enrich_so' || data.enrichmentSource === 'cache';
     const headerText = isReturning ? '🔁 Returning Visitor on Your Website' : '🆕 New Visitor on Your Website';
     const messageText = isReturning ? `🔁 Returning Visitor: ${data.company}` : `🆕 New Visitor Detected: ${data.company}`;
 
-    const message = {
-      text: messageText,
-      blocks: [
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: headerText,
-            emoji: true
+    // Build blocks array
+    const blocks: any[] = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: headerText,
+          emoji: true
+        }
+      }
+    ];
+
+    // Company Intelligence Section (if enriched)
+    if (isEnriched && (data.industry || data.revenue || data.employees || data.companyDomain)) {
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*✨ Company Intelligence* ${data.isCached ? '💾' : '🔍'}`
+        }
+      });
+
+      blocks.push({
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Company:*\n${data.company}`
+          },
+          data.companyDomain ? {
+            type: 'mrkdwn',
+            text: `*Domain:*\n${data.companyDomain}`
+          } : null,
+          data.industry ? {
+            type: 'mrkdwn',
+            text: `*Industry:*\n${data.industry}`
+          } : null,
+          data.revenue ? {
+            type: 'mrkdwn',
+            text: `*Revenue:*\n${data.revenue}`
+          } : null,
+          data.employees ? {
+            type: 'mrkdwn',
+            text: `*Employees:*\n~${data.employees.toLocaleString()}`
+          } : null,
+          data.enrichedLocation ? {
+            type: 'mrkdwn',
+            text: `*HQ Location:*\n${data.enrichedLocation}`
+          } : null
+        ].filter(Boolean)
+      });
+
+      blocks.push({
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: data.isCached ? '💾 _From cache (0 credits)_' : '🔍 _Freshly enriched (1 credit)_'
           }
-        },
+        ]
+      });
+
+      blocks.push({ type: 'divider' });
+    }
+
+    // Visitor Activity Section
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*📊 Visitor Activity*'
+      }
+    });
+
+    blocks.push({
+      type: 'section',
+      fields: [
+        !isEnriched ? {
+          type: 'mrkdwn',
+          text: `*Company:*\n${data.company}`
+        } : null,
         {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Company:*\n${data.company}`
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Location:*\n${data.location || 'Unknown'}`
-            },
-            data.pageViews ? {
-              type: 'mrkdwn',
-              text: `*Page Views:*\n${data.pageViews}`
-            } : null,
-            data.referrer ? {
-              type: 'mrkdwn',
-              text: `*Referrer:*\n${data.referrer === 'direct' ? 'Direct' : data.referrer}`
-            } : null,
-            data.timezone ? {
-              type: 'mrkdwn',
-              text: `*Timezone:*\n${data.timezone}`
-            } : null,
-            data.url ? {
-              type: 'mrkdwn',
-              text: `*URL:*\n${data.url}`
-            } : null,
-            data.ip ? {
-              type: 'mrkdwn',
-              text: `*IP:*\n${data.ip}`
-            } : null,
-            data.lastRole ? {
-              type: 'mrkdwn',
-              text: `*Role:*\n${data.lastRole}`
-            } : null,
-            data.deviceType ? {
-              type: 'mrkdwn',
-              text: `*Device:*\n${data.deviceType}`
-            } : null
-          ].filter(Boolean)
+          type: 'mrkdwn',
+          text: `*Location:*\n${data.location || 'Unknown'}`
         },
+        data.pageViews ? {
+          type: 'mrkdwn',
+          text: `*Page Views:*\n${data.pageViews}`
+        } : null,
+        data.referrer ? {
+          type: 'mrkdwn',
+          text: `*Referrer:*\n${data.referrer === 'direct' ? 'Direct' : data.referrer}`
+        } : null,
+        data.timezone ? {
+          type: 'mrkdwn',
+          text: `*Timezone:*\n${data.timezone}`
+        } : null,
+        data.url ? {
+          type: 'mrkdwn',
+          text: `*Current Page:*\n${data.url}`
+        } : null,
+        data.lastRole ? {
+          type: 'mrkdwn',
+          text: `*Role:*\n${data.lastRole}`
+        } : null,
+        data.deviceType ? {
+          type: 'mrkdwn',
+          text: `*Device:*\n${data.deviceType}`
+        } : null
+      ].filter(Boolean)
+    });
+
+    blocks.push({
+      type: 'context',
+      elements: [
         {
-          type: 'context',
-          elements: [
-            {
-              type: 'mrkdwn',
-              text: `⏰ ${data.timestamp || new Date().toLocaleString()}`
-            }
-          ]
-        },
-        {
-          type: 'divider'
-        },
-        {
-          type: 'actions',
-          elements: [
-            {
-              type: 'button',
-              text: {
-                type: 'plain_text',
-                text: '📹 Request Video Call',
-                emoji: true
-              },
-              style: 'primary',
-              url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
-              action_id: 'request_video_call'
-            },
-            {
-              type: 'button',
-              text: {
-                type: 'plain_text',
-                text: '👁️ View Details',
-                emoji: true
-              },
-              url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
-              action_id: 'view_details'
-            }
-          ]
+          type: 'mrkdwn',
+          text: `⏰ ${data.timestamp || new Date().toLocaleString()}`
         }
       ]
+    });
+
+    blocks.push({ type: 'divider' });
+
+    // Action Buttons
+    blocks.push({
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: '📹 Start Video Call',
+            emoji: true
+          },
+          style: 'primary',
+          url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
+          action_id: 'request_video_call'
+        },
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: '👁️ View Dashboard',
+            emoji: true
+          },
+          url: `https://app.tippen.com.au/visitors?visitorId=${data.visitorId}`,
+          action_id: 'view_details'
+        }
+      ]
+    });
+
+    const message = {
+      text: messageText,
+      blocks
     };
 
     const response = await fetch(webhookUrl, {
