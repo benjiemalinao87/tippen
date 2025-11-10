@@ -20,6 +20,11 @@ interface OrganizationData {
   apiKey: string;
   totalUsers: number;
   totalVisitors: number;
+  totalVideoCalls: number;
+  totalInvites: number;
+  connectedCalls: number;
+  qualifiedLeads: number;
+  avgCallDuration: number;
   creditsUsed: number;
   cacheHits: number;
   lastActivity: string;
@@ -43,11 +48,10 @@ interface EnrichmentStats {
 
 export async function getCommandCenterStats(env: any): Promise<CommandCenterStats> {
   try {
-    // Get total organizations (from api_keys table)
+    // Get total organizations
     const orgsResult = await env.DB.prepare(`
-      SELECT COUNT(DISTINCT api_key) as total
-      FROM api_keys
-      WHERE status = 'active'
+      SELECT COUNT(*) as total
+      FROM organizations
     `).first();
     const totalOrganizations = orgsResult?.total || 0;
 
@@ -84,25 +88,28 @@ export async function getCommandCenterStats(env: any): Promise<CommandCenterStat
     const cacheMisses = cacheStats?.total_lookups || 0;
     const cacheHitRate = totalLookups > 0 ? (cacheHits / totalLookups) * 100 : 0;
 
-    // Get organization details
+    // Get organization details with comprehensive metrics
     const organizationsData = await env.DB.prepare(`
       SELECT
-        ak.id,
-        COALESCE(o.name, ak.name, 'Organization ' || ak.id) as name,
-        ak.api_key,
+        o.id,
+        o.name,
+        o.api_key,
         COUNT(DISTINCT u.id) as total_users,
         COUNT(DISTINCT v.visitor_id) as total_visitors,
-        COALESCE(SUM(ec.credits_used), 0) as credits_used,
-        COALESCE(SUM(ec.lookup_count), 0) as cache_hits,
+        COUNT(DISTINCT vc.id) as total_video_calls,
+        COUNT(DISTINCT CASE WHEN vc.status = 'invited' THEN vc.id END) as total_invites,
+        COUNT(DISTINCT CASE WHEN vc.status IN ('connected', 'completed') THEN vc.id END) as connected_calls,
+        COUNT(DISTINCT CASE WHEN vc.is_qualified_lead = 1 THEN vc.id END) as qualified_leads,
+        COALESCE(AVG(CASE WHEN vc.duration_seconds > 0 THEN vc.duration_seconds END), 0) as avg_call_duration,
+        0 as credits_used,
+        0 as cache_hits,
         MAX(v.last_seen_at) as last_activity,
-        ak.status
-      FROM api_keys ak
-      LEFT JOIN organizations o ON ak.organization_id = o.id
-      LEFT JOIN users u ON o.id = u.organization_id
-      LEFT JOIN visitors v ON ak.api_key = v.api_key
-      LEFT JOIN enrichment_cache ec ON v.ip_address = ec.ip_address
-      WHERE ak.status = 'active'
-      GROUP BY ak.id, o.name, ak.name, ak.api_key, ak.status
+        'active' as status
+      FROM organizations o
+      LEFT JOIN users u ON o.id = u.organization_id AND u.status = 'active'
+      LEFT JOIN visitors v ON o.api_key = v.api_key
+      LEFT JOIN video_calls vc ON o.api_key = vc.api_key
+      GROUP BY o.id, o.name, o.api_key
       ORDER BY total_visitors DESC
     `).all();
 
@@ -112,6 +119,11 @@ export async function getCommandCenterStats(env: any): Promise<CommandCenterStat
       apiKey: org.api_key,
       totalUsers: org.total_users || 0,
       totalVisitors: org.total_visitors || 0,
+      totalVideoCalls: org.total_video_calls || 0,
+      totalInvites: org.total_invites || 0,
+      connectedCalls: org.connected_calls || 0,
+      qualifiedLeads: org.qualified_leads || 0,
+      avgCallDuration: Math.round(org.avg_call_duration || 0),
       creditsUsed: org.credits_used || 0,
       cacheHits: org.cache_hits || 0,
       lastActivity: org.last_activity || new Date().toISOString(),
@@ -196,7 +208,7 @@ export async function handleCommandCenterRequest(
       SELECT s.user_id, u.role
       FROM sessions s
       JOIN users u ON s.user_id = u.id
-      WHERE s.session_token = ? AND s.expires_at > datetime('now')
+      WHERE s.token = ? AND s.expires_at > datetime('now')
     `).bind(token).first();
 
     if (!session || session.role !== 'saas-owner') {
