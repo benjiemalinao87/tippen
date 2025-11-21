@@ -30,7 +30,7 @@ interface UseVisitorWebSocketReturn {
   refreshVisitors: () => void;
 }
 
-const WEBSOCKET_URL = import.meta.env.VITE_VISITOR_WS_URL || 'ws://localhost:8787/ws/dashboard';
+const WEBSOCKET_URL = import.meta.env.VITE_VISITOR_WS_URL || 'wss://tippen-backend.benjiemalinao879557.workers.dev/ws/dashboard';
 
 /**
  * Get API key from authenticated user

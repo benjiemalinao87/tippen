@@ -34,7 +34,7 @@ export function Router() {
 
       // Verify token with backend
       try {
-        const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://').replace('/ws/dashboard', '') || 'http://localhost:8787';
+        const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://').replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
 
         const response = await fetch(`${BACKEND_URL}/api/auth/verify`, {
           method: 'POST',

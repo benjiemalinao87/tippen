@@ -67,7 +67,7 @@ export function CommandCenter() {
       const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL
         ?.replace('wss://', 'https://')
         .replace('ws://', 'http://')
-        .replace('/ws/dashboard', '') || 'http://localhost:8787';
+        .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
 
       const response = await fetch(`${BACKEND_URL}/api/admin/command-center`, {
         headers: {
