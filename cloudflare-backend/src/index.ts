@@ -240,85 +240,103 @@ async function handleVisitorTracking(
       // Continue anyway - don't fail the request if D1 save fails
     }
 
-    // Send Slack notification with rate limiting (1 notification per 2 minutes)
-    try {
-      const slackConfig = await getSlackConfig(env.DB, apiKey);
+    // Send Slack notification ONLY for pageview events (not heartbeats)
+    // This prevents rapid-fire notifications every 30 seconds
+    const event = data.event || 'pageview';
+    const shouldCheckSlack = event === 'pageview';
 
-      if (slackConfig && slackConfig.enabled) {
-        // Check when the last Slack notification was sent for this visitor
-        let shouldSendNotification = false;
-        let lastNotificationTime: number | null = null;
+    if (shouldCheckSlack) {
+      try {
+        const slackConfig = await getSlackConfig(env.DB, apiKey);
 
-        try {
-          const result = await env.DB
-            .prepare('SELECT last_slack_notification_at FROM visitors WHERE visitor_id = ? AND api_key = ?')
-            .bind(enrichedVisitor.visitorId, apiKey)
-            .first();
+        if (slackConfig && slackConfig.enabled) {
+          // Determine if we should send notification based on visitor type and config
+          const shouldNotifyForVisitorType =
+            (isNewVisitor && slackConfig.notifyNewVisitors !== false) ||
+            (!isNewVisitor && slackConfig.notifyReturningVisitors !== false);
 
-          if (result && result.last_slack_notification_at) {
-            lastNotificationTime = new Date(result.last_slack_notification_at as string).getTime();
-            const now = Date.now();
-            const timeSinceLastNotification = now - lastNotificationTime;
-
-            // Send notification if it's been at least 2 minutes (120 seconds)
-            shouldSendNotification = timeSinceLastNotification >= 120000;
-
-            console.log(`[Tippen] Last Slack notification: ${Math.round(timeSinceLastNotification / 1000)}s ago. Should send: ${shouldSendNotification}`);
+          if (!shouldNotifyForVisitorType) {
+            console.log('[Tippen] Skipping Slack notification (disabled for this visitor type)');
           } else {
-            // No previous notification, send one
-            shouldSendNotification = true;
-            console.log('[Tippen] No previous Slack notification found, sending first notification');
+            // Check when the last Slack notification was sent for this visitor
+            let shouldSendNotification = false;
+
+            try {
+              const result = await env.DB
+                .prepare('SELECT last_slack_notification_at FROM visitors WHERE visitor_id = ? AND api_key = ?')
+                .bind(enrichedVisitor.visitorId, apiKey)
+                .first();
+
+              if (result && result.last_slack_notification_at) {
+                const lastNotificationTime = new Date(result.last_slack_notification_at as string).getTime();
+                const now = Date.now();
+                const timeSinceLastNotification = now - lastNotificationTime;
+
+                // Only send notification if it's been at least 2 hours (7200 seconds)
+                // This prevents spam for returning visitors who visit multiple times per day
+                shouldSendNotification = timeSinceLastNotification >= 7200000; // 2 hours
+
+                console.log(`[Tippen] Last Slack notification: ${Math.round(timeSinceLastNotification / 1000)}s ago. Should send: ${shouldSendNotification}`);
+              } else {
+                // No previous notification, send one
+                shouldSendNotification = true;
+                console.log('[Tippen] No previous Slack notification found, sending first notification');
+              }
+            } catch (error) {
+              console.error('[Tippen] Failed to check last notification time:', error);
+              // If check fails, default to sending notification for new visitors only
+              shouldSendNotification = isNewVisitor;
+            }
+
+            if (shouldSendNotification) {
+              const visitorType = isNewVisitor ? '🆕 New' : '🔄 Returning';
+              console.log(`[Tippen] Sending Slack notification for ${visitorType} visitor:`, enrichedVisitor.company);
+
+              const slackPayload = {
+                visitorId: enrichedVisitor.visitorId,
+                company: enrichedVisitor.company || 'Unknown Company',
+                location: enrichedVisitor.location,
+                revenue: enrichedVisitor.revenue,
+                staff: enrichedVisitor.staff,
+                lastRole: enrichedVisitor.lastRole,
+                deviceType: enrichedVisitor.deviceType,
+                pageViews: enrichedVisitor.pageViews || 1,
+                timeOnSite: enrichedVisitor.timeOnSite,
+                referrer: enrichedVisitor.referrer,
+                timezone: enrichedVisitor.timezone,
+                url: enrichedVisitor.url,
+                ip: enrichedVisitor.ip,
+                timestamp: new Date().toLocaleString(),
+                isReturning: !isNewVisitor
+              };
+
+              console.log('[Tippen] Slack payload:', JSON.stringify(slackPayload, null, 2));
+
+              await sendNewVisitorNotification(slackConfig.webhookUrl, slackPayload);
+
+              // Update the last notification timestamp
+              try {
+                await env.DB
+                  .prepare('UPDATE visitors SET last_slack_notification_at = CURRENT_TIMESTAMP WHERE visitor_id = ? AND api_key = ?')
+                  .bind(enrichedVisitor.visitorId, apiKey)
+                  .run();
+                console.log('[Tippen] Updated last_slack_notification_at timestamp');
+              } catch (error) {
+                console.error('[Tippen] Failed to update last notification timestamp:', error);
+              }
+
+              console.log('[Tippen] Slack notification sent successfully');
+            } else {
+              console.log('[Tippen] Skipping Slack notification (rate limit - 2 hour cooldown)');
+            }
           }
-        } catch (error) {
-          console.error('[Tippen] Failed to check last notification time:', error);
-          // If check fails, default to sending notification for new visitors only
-          shouldSendNotification = isNewVisitor;
         }
-
-        if (shouldSendNotification) {
-          const visitorType = isNewVisitor ? '🆕 New' : '🔄 Returning';
-          console.log(`[Tippen] Sending Slack notification for ${visitorType} visitor:`, enrichedVisitor.company);
-
-          const slackPayload = {
-            visitorId: enrichedVisitor.visitorId,
-            company: `${visitorType} - ${enrichedVisitor.company || 'Unknown Company'}`,
-            location: enrichedVisitor.location,
-            revenue: enrichedVisitor.revenue,
-            staff: enrichedVisitor.staff,
-            lastRole: enrichedVisitor.lastRole,
-            deviceType: enrichedVisitor.deviceType,
-            pageViews: enrichedVisitor.pageViews || 1,
-            timeOnSite: enrichedVisitor.timeOnSite,
-            referrer: enrichedVisitor.referrer,
-            timezone: enrichedVisitor.timezone,
-            url: enrichedVisitor.url,
-            ip: enrichedVisitor.ip,
-            timestamp: new Date().toLocaleString()
-          };
-
-          console.log('[Tippen] Slack payload:', JSON.stringify(slackPayload, null, 2));
-
-          await sendNewVisitorNotification(slackConfig.webhookUrl, slackPayload);
-
-          // Update the last notification timestamp
-          try {
-            await env.DB
-              .prepare('UPDATE visitors SET last_slack_notification_at = CURRENT_TIMESTAMP WHERE visitor_id = ? AND api_key = ?')
-              .bind(enrichedVisitor.visitorId, apiKey)
-              .run();
-            console.log('[Tippen] Updated last_slack_notification_at timestamp');
-          } catch (error) {
-            console.error('[Tippen] Failed to update last notification timestamp:', error);
-          }
-
-          console.log('[Tippen] Slack notification sent successfully');
-        } else {
-          console.log('[Tippen] Skipping Slack notification (rate limit)');
-        }
+      } catch (error) {
+        console.error('[Tippen] Failed to send Slack notification:', error);
+        // Don't fail the request if Slack fails
       }
-    } catch (error) {
-      console.error('[Tippen] Failed to send Slack notification:', error);
-      // Don't fail the request if Slack fails
+    } else {
+      console.log(`[Tippen] Skipping Slack notification for event type: ${event}`);
     }
 
     return new Response(
