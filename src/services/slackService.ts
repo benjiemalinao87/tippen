@@ -62,7 +62,7 @@ class SlackService {
           const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
             ?.replace('ws://', 'http://')
             .replace('wss://', 'https://')
-            .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+            .replace('/ws/dashboard', '') || 'https://api-tippen.com';
 
           await fetch(`${backendUrl}/api/slack/config`, {
             method: 'POST',

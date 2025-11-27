@@ -14,7 +14,7 @@ export const TRACKING_SCRIPT = `/**
   // Configuration
   const script = document.currentScript;
   const apiKey = script?.getAttribute('data-tippen-api-key') || script?.getAttribute('data-api-key');
-  const backendUrl = script?.getAttribute('data-tippen-backend') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+  const backendUrl = script?.getAttribute('data-tippen-backend') || 'https://api-tippen.com';
   const TIPPEN_API_URL = \`\${backendUrl}/track/visitor\`;
 
   if (!apiKey) {

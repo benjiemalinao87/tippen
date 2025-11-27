@@ -332,7 +332,7 @@ export function Visitors() {
         // Save video session details to D1 database
         try {
           const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
-                           'https://tippen-backend.benjiemalinao879557.workers.dev';
+                           'https://api-tippen.com';
           const apiKey = getUserApiKey();
 
           if (!apiKey) {
@@ -393,7 +393,7 @@ export function Visitors() {
         console.log('[Admin] Visitor ID:', activeVisitor.visitorId);
 
         const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
-                          'https://tippen-backend.benjiemalinao879557.workers.dev';
+                          'https://api-tippen.com';
         const apiKey = getUserApiKey();
 
         if (!apiKey) {
@@ -447,7 +447,7 @@ export function Visitors() {
 
     try {
       const backendUrl = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
-                        'https://tippen-backend.benjiemalinao879557.workers.dev';
+                        'https://api-tippen.com';
       const apiKey = getUserApiKey();
 
       if (!apiKey) {

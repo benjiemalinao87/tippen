@@ -80,7 +80,7 @@ export function Settings() {
   const [copiedScript, setCopiedScript] = useState(false);
   const [apiKey, setApiKey] = useState('your_api_key_here');
   const [orgApiKey, setOrgApiKey] = useState<string | null>(null); // Organization API key (primary)
-  const [backendUrl, setBackendUrl] = useState('https://tippen-backend.benjiemalinao879557.workers.dev');
+  const [backendUrl, setBackendUrl] = useState('https://api-tippen.com');
   const [keyType, setKeyType] = useState<'client' | 'demo' | 'test'>('client');
   const [clientName, setClientName] = useState('');
 
@@ -111,7 +111,7 @@ export function Settings() {
           const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
             ?.replace('ws://', 'http://')
             .replace('wss://', 'https://')
-            .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+            .replace('/ws/dashboard', '') || 'https://api-tippen.com';
 
           const response = await fetch(`${backendUrl}/api/slack/config?api_key=${userApiKey}`);
           const data = await response.json();

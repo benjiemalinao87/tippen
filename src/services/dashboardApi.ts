@@ -4,7 +4,7 @@
  */
 
 const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
-                    'https://tippen-backend.benjiemalinao879557.workers.dev';
+                    'https://api-tippen.com';
 
 /**
  * Get API key from authenticated user

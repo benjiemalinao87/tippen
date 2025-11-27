@@ -45,7 +45,7 @@ export function VideoSessionsHistory() {
       const backendUrl = import.meta.env.VITE_VISITOR_WS_URL
         ?.replace('ws://', 'http://')
         .replace('wss://', 'https://')
-        .replace('/ws/dashboard', '') || 'https://tippen-backend.benjiemalinao879557.workers.dev';
+        .replace('/ws/dashboard', '') || 'https://api-tippen.com';
 
       const url = `${backendUrl}/api/analytics/video-sessions?api_key=${apiKey}&limit=50${filterStatus !== 'all' ? `&status=${filterStatus}` : ''}`;
 

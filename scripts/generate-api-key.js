@@ -95,7 +95,7 @@ console.log('\n📋 Copy-paste integration code:\n');
 console.log(`<script
   src="https://tippen.pages.dev/tippen-tracker.js"
   data-tippen-api-key="${apiKey}"
-  data-tippen-backend="https://tippen-backend.benjiemalinao879557.workers.dev"
+  data-tippen-backend="https://api-tippen.com"
 ></script>`);
 console.log('\n✅ Save this API key securely!\n');
 
