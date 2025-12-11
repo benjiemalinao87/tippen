@@ -21,8 +21,8 @@ export function Router() {
     const checkAuth = async () => {
       const token = localStorage.getItem('tippen_auth_token');
 
-      // Public routes don't need auth check (including landing page)
-      if (currentPath === '/' || currentPath === '/login' || currentPath === '/onboarding') {
+      // Public routes don't need auth check
+      if (currentPath === '/landing' || currentPath === '/login' || currentPath === '/onboarding') {
         setIsAuthChecking(false);
         return;
       }
@@ -67,13 +67,7 @@ export function Router() {
   }, [currentPath]);
 
   // Public routes (no authentication required)
-  // Landing page - shown to non-authenticated users at root
-  if (currentPath === '/') {
-    // If user is already authenticated, redirect to dashboard
-    if (!isAuthChecking && isAuthenticated) {
-      window.location.href = '/dashboard';
-      return null;
-    }
+  if (currentPath === '/landing') {
     return <Landing />;
   }
 
