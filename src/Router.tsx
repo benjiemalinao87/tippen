@@ -70,9 +70,8 @@ export function Router() {
   // Landing page - shown to non-authenticated users at root
   if (currentPath === '/') {
     // If user is already authenticated, redirect to dashboard
-    const token = localStorage.getItem('tippen_auth_token');
-    if (token && isAuthenticated) {
-      window.location.href = '/visitors';
+    if (!isAuthChecking && isAuthenticated) {
+      window.location.href = '/dashboard';
       return null;
     }
     return <Landing />;
