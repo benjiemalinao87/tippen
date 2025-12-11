@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import App from './App';
 import { Login, Onboarding } from './features/auth/components';
+import { Landing } from './features/landing';
 
 export function Router() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -20,8 +21,8 @@ export function Router() {
     const checkAuth = async () => {
       const token = localStorage.getItem('tippen_auth_token');
 
-      // Public routes don't need auth check
-      if (currentPath === '/login' || currentPath === '/onboarding') {
+      // Public routes don't need auth check (including landing page)
+      if (currentPath === '/' || currentPath === '/login' || currentPath === '/onboarding') {
         setIsAuthChecking(false);
         return;
       }
@@ -66,6 +67,17 @@ export function Router() {
   }, [currentPath]);
 
   // Public routes (no authentication required)
+  // Landing page - shown to non-authenticated users at root
+  if (currentPath === '/') {
+    // If user is already authenticated, redirect to dashboard
+    const token = localStorage.getItem('tippen_auth_token');
+    if (token && isAuthenticated) {
+      window.location.href = '/visitors';
+      return null;
+    }
+    return <Landing />;
+  }
+
   if (currentPath === '/login') {
     return <Login />;
   }
