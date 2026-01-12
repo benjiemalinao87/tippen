@@ -228,10 +228,10 @@ export function Landing() {
 
           {/* Main Headline */}
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.1]">
-            <span className="text-white">See </span>
+            <span className="text-white">Stop losing </span>
             <span className="relative inline-block">
               <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                who's on your website
+                high-intent users
               </span>
               <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
                 <path d="M2 10C50 4 150 2 298 10" stroke="url(#paint0_linear)" strokeWidth="3" strokeLinecap="round"/>
@@ -244,12 +244,12 @@ export function Landing() {
               </svg>
             </span>
             <br />
-            <span className="text-white">then talk to them.</span>
+            <span className="text-white">who signed up but never converted</span>
           </h1>
 
           {/* Subheadline */}
           <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed">
-            Turn anonymous traffic into qualified conversations. Know the company behind every visitor and start video calls with one click.
+            Spot high-intent users, turn into qualified conversations. Know the company behind every visitor and start video calls with one click.
           </p>
 
           {/* CTAs */}
@@ -381,7 +381,7 @@ export function Landing() {
       <section className="relative py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            97% of your website visitors leave without talking to you.
+            80% of your signed up users leave without paying or talking to you.
           </h2>
           <p className="text-xl text-gray-400 mb-8 leading-relaxed">
             Right now, qualified buyers are browsing your site. They're reading your pricing. They're interested. 
@@ -722,7 +722,7 @@ export function Landing() {
               Ready to see who's on your website?
             </h2>
             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Join hundreds of B2B companies turning anonymous visitors into qualified conversations.
+              Join hundreds of B2B companies spot high-intent users into qualified conversations.
             </p>
             <button
               onClick={handleStartTrial}
