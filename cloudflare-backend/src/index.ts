@@ -394,7 +394,33 @@ async function enrichVisitorData(
       .first();
 
     if (cached) {
-      console.log(`[Cache HIT] ✅ Using cached data for IP: ${ip} (Company: ${cached.company_name})`);
+      // Try to extract from columns first, fall back to parsing raw_response
+      let company = cached.company_name;
+      let domain = cached.company_domain;
+      let industry = cached.industry;
+      let revenue = cached.revenue;
+      let employees = cached.employees;
+      let location = cached.location;
+
+      // If columns are empty but we have raw_response, parse it
+      if (!company && cached.raw_response) {
+        try {
+          const rawData = JSON.parse(cached.raw_response as string);
+          const data = rawData.data || rawData;
+          company = data.name || data.legalName || null;
+          domain = domain || data.domain || null;
+          industry = industry || data.category?.industry || data.category?.industryGroup || null;
+          revenue = revenue || data.metrics?.estimatedAnnualRevenue || null;
+          employees = employees || data.metrics?.employees || data.metrics?.employeesRange || null;
+          location = location || data.location || (data.geo?.city ? `${data.geo.city}, ${data.geo.country}` : null);
+          
+          console.log(`[Cache HIT] ✅ Parsed from raw_response for IP: ${ip} (Company: ${company})`);
+        } catch (parseError) {
+          console.error('[Cache] Failed to parse raw_response:', parseError);
+        }
+      } else {
+        console.log(`[Cache HIT] ✅ Using cached data for IP: ${ip} (Company: ${company})`);
+      }
 
       // Update cache usage statistics
       await env.DB
@@ -406,15 +432,16 @@ async function enrichVisitorData(
       return {
         ...visitor,
         ip,
-        company: cached.company_name || 'Unknown Company',
-        domain: cached.company_domain || null,
-        industry: cached.industry || null,
-        revenue: cached.revenue || null,
-        staff: cached.employees || null,
-        location: cached.location || visitor.timezone || 'Unknown Location',
+        company: company || 'Unknown Company',
+        domain: domain || null,
+        industry: industry || null,
+        revenue: revenue || null,
+        staff: employees || null,
+        location: location || visitor.timezone || 'Unknown Location',
         deviceType: buildDeviceType(visitor.userAgent),
         _cached: true, // Flag for tracking
-        _enrichmentSource: 'cache',
+        _enrichmentSource: 'enrich_so',
+        isCached: true,
         userAgent: visitor.userAgent,
         screenResolution: visitor.screenResolution,
         language: visitor.language,
@@ -449,13 +476,15 @@ async function enrichVisitorData(
       const companyData = await response.json() as any;
       console.log(`[Enrich.so] ✅ Success (${responseTime}ms):`, companyData);
 
-      // Extract company data (handle various response formats)
-      const company = companyData.company?.name || companyData.name || null;
-      const domain = companyData.company?.domain || companyData.domain || null;
-      const industry = companyData.company?.industry || companyData.industry || null;
-      const revenue = companyData.company?.revenue || companyData.revenue || null;
-      const employees = companyData.company?.employees || companyData.employees || null;
-      const location = companyData.company?.location || companyData.location || null;
+      // Extract company data from Enrich.so response format
+      // API returns: { success: true, data: { name, domain, category: { industry }, location, metrics: { employees, estimatedAnnualRevenue } } }
+      const data = companyData.data || companyData;
+      const company = data.name || data.legalName || null;
+      const domain = data.domain || null;
+      const industry = data.category?.industry || data.category?.industryGroup || null;
+      const revenue = data.metrics?.estimatedAnnualRevenue || null;
+      const employees = data.metrics?.employees || data.metrics?.employeesRange || null;
+      const location = data.location || data.geo?.city ? `${data.geo?.city}, ${data.geo?.country}` : null;
 
       // ========================================
       // STEP 3: Store in cache for future use
