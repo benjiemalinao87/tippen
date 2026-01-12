@@ -202,6 +202,7 @@ export function Visitors() {
 
   // Date range and analytics state
   const [selectedRange, setSelectedRange] = useState<DateRangeType>('active');
+  const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
   const [analytics, setAnalytics] = useState<VisitorAnalytics>({
     totalVisitors: 0,
     activeVisitors: 0,
@@ -214,7 +215,18 @@ export function Visitors() {
     locationBreakdown: []
   });
 
-  // Fetch analytics when date range changes
+  // Listen for impersonation changes to refetch analytics
+  useEffect(() => {
+    const handleImpersonationChange = () => {
+      console.log('[Visitors] Impersonation changed, refetching analytics...');
+      setAnalyticsRefreshKey(k => k + 1);
+    };
+
+    window.addEventListener('tippen-impersonation-change', handleImpersonationChange);
+    return () => window.removeEventListener('tippen-impersonation-change', handleImpersonationChange);
+  }, []);
+
+  // Fetch analytics when date range changes or impersonation changes
   useEffect(() => {
     const fetchAnalytics = async () => {
       const data = await getVisitorAnalytics(selectedRange);
@@ -222,7 +234,7 @@ export function Visitors() {
     };
 
     fetchAnalytics();
-  }, [selectedRange]);
+  }, [selectedRange, analyticsRefreshKey]);
 
   // Handle date range change
   const handleRangeChange = async (range: DateRangeType, startDate?: string, endDate?: string) => {

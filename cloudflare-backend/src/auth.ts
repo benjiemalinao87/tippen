@@ -234,11 +234,28 @@ export async function handleSignup(
 }
 
 /**
+ * Parse SAAS_OWNERS string into a Set of lowercase emails
+ */
+function parseSaasOwners(saasOwners?: string): Set<string> {
+  if (!saasOwners) return new Set();
+  return new Set(
+    saasOwners
+      .split(',')
+      .map(email => email.trim().toLowerCase())
+      .filter(email => email.length > 0)
+  );
+}
+
+/**
  * Handle user login
+ * @param db - D1 Database instance
+ * @param request - Login request data
+ * @param saasOwners - Optional comma-separated list of saas-owner emails from env
  */
 export async function handleLogin(
   db: D1Database,
-  request: LoginRequest
+  request: LoginRequest,
+  saasOwners?: string
 ): Promise<AuthResponse> {
   try {
     // Validate input
@@ -306,7 +323,17 @@ export async function handleLogin(
       )
       .run();
 
-    console.log(`[Auth] User login: ${user.email}`);
+    // Determine effective role
+    // Check if user's email is in the SAAS_OWNERS env variable
+    const saasOwnerEmails = parseSaasOwners(saasOwners);
+    const userEmail = user.email.toLowerCase();
+    const effectiveRole = saasOwnerEmails.has(userEmail) ? 'saas-owner' : user.role;
+
+    if (saasOwnerEmails.has(userEmail)) {
+      console.log(`[Auth] User ${user.email} granted saas-owner access via SAAS_OWNERS env`);
+    }
+
+    console.log(`[Auth] User login: ${user.email} (role: ${effectiveRole})`);
 
     return {
       success: true,
@@ -316,7 +343,7 @@ export async function handleLogin(
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        role: user.role,
+        role: effectiveRole,  // ← Use effective role (may be overridden by env)
         organizationId: user.organization_id,
         organizationName: user.organization_name,
         apiKey: user.api_key  // ← Include API key in login response
@@ -333,10 +360,14 @@ export async function handleLogin(
 
 /**
  * Verify session token
+ * @param db - D1 Database instance
+ * @param token - Session token to verify
+ * @param saasOwners - Optional comma-separated list of saas-owner emails from env
  */
 export async function verifySession(
   db: D1Database,
-  token: string
+  token: string,
+  saasOwners?: string
 ): Promise<AuthResponse> {
   try {
     const session = await db.prepare(
@@ -360,6 +391,12 @@ export async function verifySession(
       };
     }
 
+    // Determine effective role
+    // Check if user's email is in the SAAS_OWNERS env variable
+    const saasOwnerEmails = parseSaasOwners(saasOwners);
+    const userEmail = session.email.toLowerCase();
+    const effectiveRole = saasOwnerEmails.has(userEmail) ? 'saas-owner' : session.role;
+
     return {
       success: true,
       user: {
@@ -367,7 +404,7 @@ export async function verifySession(
         email: session.email,
         firstName: session.first_name,
         lastName: session.last_name,
-        role: session.role,
+        role: effectiveRole,  // ← Use effective role (may be overridden by env)
         organizationId: session.organization_id,
         organizationName: session.organization_name,
         apiKey: session.api_key  // ← Include API key in verification

@@ -7,6 +7,8 @@ import { CommandCenter } from './features/command-center';
 import { LandingPage } from './landing-funnel-v2/LandingPage';
 import { agentApi } from './lib/api';
 import type { Agent } from './shared/types';
+import { ImpersonationProvider } from './shared/contexts/ImpersonationContext';
+import { WorkspaceSwitcher, ImpersonationBanner } from './shared/components/ui';
 
 type View = 'dashboard' | 'visitors' | 'settings' | 'command-center' | 'landing-funnel';
 
@@ -142,68 +144,75 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* Fixed Header */}
-      <nav className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Tippen</h1>
-              </div>
-            </div>
+    <ImpersonationProvider>
+      <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
+        {/* Impersonation Banner - shown when viewing client workspace */}
+        <ImpersonationBanner />
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                {/* Dashboard button hidden - default view is Visitors */}
-                {/* <button
-                  onClick={() => navigateTo('dashboard')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
-                    currentView === 'dashboard'
-                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Dashboard
-                </button> */}
-                <button
-                  onClick={() => navigateTo('visitors')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'visitors'
-                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+        {/* Fixed Header */}
+        <nav className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Tippen</h1>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Workspace Switcher - only visible for saas-owner */}
+                {userRole === 'saas-owner' && <WorkspaceSwitcher />}
+
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                  {/* Dashboard button hidden - default view is Visitors */}
+                  {/* <button
+                    onClick={() => navigateTo('dashboard')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+                      currentView === 'dashboard'
+                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
-                >
-                  <Users className="w-4 h-4" />
-                  Visitors
-                </button>
-                <button
-                  onClick={() => navigateTo('settings')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'settings'
-                      ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
-                    }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </button>
-                {userRole === 'saas-owner' && (
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Dashboard
+                  </button> */}
                   <button
-                    onClick={() => navigateTo('command-center')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'command-center'
+                    onClick={() => navigateTo('visitors')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'visitors'
                         ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
                       }`}
                   >
-                    <Shield className="w-4 h-4" />
-                    Command Center
+                    <Users className="w-4 h-4" />
+                    Visitors
                   </button>
-                )}
+                  <button
+                    onClick={() => navigateTo('settings')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'settings'
+                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                      }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </button>
+                  {userRole === 'saas-owner' && (
+                    <button
+                      onClick={() => navigateTo('command-center')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${currentView === 'command-center'
+                          ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                        }`}
+                    >
+                      <Shield className="w-4 h-4" />
+                      Command Center
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </nav>
+        </nav>
 
       {/* Scrollable Content Area */}
       <main className="flex-1 overflow-y-auto">
@@ -281,7 +290,8 @@ function App() {
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
       </div>
-    </div>
+      </div>
+    </ImpersonationProvider>
   );
 }
 

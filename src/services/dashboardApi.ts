@@ -3,30 +3,23 @@
  * Fetches real-time metrics from Cloudflare D1 database
  */
 
+import { getUserApiKey as getActiveApiKey } from '../shared/utils/auth';
+
 const BACKEND_URL = import.meta.env.VITE_VISITOR_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '') ||
                     'https://api-tippen.com';
 
 /**
- * Get API key from authenticated user
+ * Get API key - uses the shared auth utility which handles impersonation
  */
 function getUserApiKey(): string {
-  try {
-    const userStr = localStorage.getItem('tippen_user');
-    if (!userStr) {
-      throw new Error('No user found in localStorage');
-    }
-
-    const user = JSON.parse(userStr);
-    if (!user.apiKey) {
-      throw new Error('No API key found for user');
-    }
-
-    return user.apiKey;
-  } catch (error) {
-    console.error('[Dashboard API] Failed to get user API key:', error);
-    // Fallback to env variable for backwards compatibility
-    return import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
+  const apiKey = getActiveApiKey();
+  if (apiKey) {
+    return apiKey;
   }
+  
+  console.error('[Dashboard API] No API key found');
+  // Fallback to env variable for backwards compatibility
+  return import.meta.env.VITE_TIPPEN_API_KEY || 'demo_tippen_2025_live_k8m9n2p4q7r1';
 }
 
 export interface DashboardMetrics {

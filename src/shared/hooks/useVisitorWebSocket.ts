@@ -31,21 +31,41 @@ interface UseVisitorWebSocketReturn {
 }
 
 const WEBSOCKET_URL = import.meta.env.VITE_VISITOR_WS_URL || 'wss://tippen-backend.benjiemalinao879557.workers.dev/ws/dashboard';
+const IMPERSONATION_STORAGE_KEY = 'tippen_impersonation';
 
 /**
- * Get API key from authenticated user
+ * Get API key - checks for impersonation first, then falls back to user's own API key
  */
-function getUserApiKey(): string | null {
+function getActiveApiKey(): string | null {
   try {
+    // First check if we're impersonating another organization
+    const impersonationStr = localStorage.getItem(IMPERSONATION_STORAGE_KEY);
+    if (impersonationStr) {
+      const impersonation = JSON.parse(impersonationStr);
+      if (impersonation.targetOrganization?.apiKey) {
+        console.log('[WebSocket] Using impersonated API key for:', impersonation.targetOrganization.name);
+        return impersonation.targetOrganization.apiKey;
+      }
+    }
+
+    // Fall back to user's own API key
     const userStr = localStorage.getItem('tippen_user');
     if (!userStr) return null;
 
     const user = JSON.parse(userStr);
     return user.apiKey || null;
   } catch (error) {
-    console.error('[WebSocket] Failed to get user API key:', error);
+    console.error('[WebSocket] Failed to get API key:', error);
     return null;
   }
+}
+
+/**
+ * Get API key from authenticated user (legacy - for backward compatibility)
+ * @deprecated Use getActiveApiKey() instead
+ */
+function getUserApiKey(): string | null {
+  return getActiveApiKey();
 }
 
 export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
@@ -62,10 +82,10 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
       return;
     }
 
-    // Get user's API key from localStorage
-    const apiKey = getUserApiKey();
+    // Get active API key (impersonated or user's own)
+    const apiKey = getActiveApiKey();
     if (!apiKey) {
-      console.error('[WebSocket] No API key found for user');
+      console.error('[WebSocket] No API key found');
       setConnectionStatus('error');
       return;
     }
@@ -190,10 +210,10 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
 
   const sendVideoInvite = useCallback(async (visitorId: string, guestUrl: string, sessionId: string): Promise<void> => {
     try {
-      // Get user's API key
-      const apiKey = getUserApiKey();
+      // Get active API key (impersonated or user's own)
+      const apiKey = getActiveApiKey();
       if (!apiKey) {
-        throw new Error('No API key found for user');
+        throw new Error('No API key found');
       }
 
       const response = await fetch(`${WEBSOCKET_URL.replace('ws://', 'http://').replace('wss://', 'https://').replace('/ws/dashboard', '')}/api/send-video-invite`, {
@@ -223,6 +243,47 @@ export function useVisitorWebSocket(): UseVisitorWebSocketReturn {
       wsRef.current.send(JSON.stringify({ type: 'GET_VISITORS' }));
     }
   }, []);
+
+  // Handle impersonation changes - reconnect with new API key
+  const reconnectWithNewApiKey = useCallback(() => {
+    console.log('[WebSocket] Impersonation changed, reconnecting...');
+    
+    // Clear visitors from old organization
+    setVisitors([]);
+    
+    // Close existing connection
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      wsRef.current.close(1000, 'Impersonation changed');
+      wsRef.current = null;
+    }
+    
+    // Clear timers
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    
+    // Small delay to let state settle, then reconnect
+    setTimeout(() => {
+      if (!isUnmountedRef.current) {
+        connect();
+      }
+    }, 100);
+  }, [connect]);
+
+  // Listen for impersonation state changes
+  useEffect(() => {
+    const handleImpersonationChange = () => {
+      reconnectWithNewApiKey();
+    };
+
+    window.addEventListener('tippen-impersonation-change', handleImpersonationChange);
+    return () => window.removeEventListener('tippen-impersonation-change', handleImpersonationChange);
+  }, [reconnectWithNewApiKey]);
 
   useEffect(() => {
     console.log('[WebSocket] useEffect - mounting component');

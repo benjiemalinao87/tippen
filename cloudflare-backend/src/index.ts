@@ -26,12 +26,13 @@ import {
 } from './auth';
 import { TRACKING_SCRIPT } from './trackingScript';
 import { getSlackConfig, saveSlackConfig, sendNewVisitorNotification } from './slack';
-import { handleCommandCenterRequest } from './commandCenter';
+import { handleCommandCenterRequest, handleListOrganizations, handleSwitchWorkspace } from './commandCenter';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
   CLEARBIT_API_KEY: string; // Deprecated - kept for backward compatibility
   ENRICH_API_KEY: string; // Enrich.so JWT token
+  SAAS_OWNERS: string; // Comma-separated list of emails with saas-owner access
   DB: D1Database;
 }
 
@@ -151,6 +152,16 @@ export default {
     // Route: Command Center (saas-owner only)
     if (url.pathname === '/api/admin/command-center' && request.method === 'GET') {
       return handleCommandCenterRequest(request, env, corsHeaders);
+    }
+
+    // Route: List all organizations (saas-owner only) - for workspace switcher
+    if (url.pathname === '/api/admin/organizations' && request.method === 'GET') {
+      return handleListOrganizations(request, env, corsHeaders);
+    }
+
+    // Route: Switch workspace / impersonate organization (saas-owner only)
+    if (url.pathname === '/api/admin/switch-workspace' && request.method === 'POST') {
+      return handleSwitchWorkspace(request, env, corsHeaders);
     }
 
     // Route: Logout
@@ -1077,7 +1088,8 @@ async function handleLoginRequest(
 ): Promise<Response> {
   try {
     const loginData = await request.json() as any;
-    const result = await handleLogin(env.DB, loginData);
+    // Pass SAAS_OWNERS env to check if user should have elevated access
+    const result = await handleLogin(env.DB, loginData, env.SAAS_OWNERS);
 
     return new Response(
       JSON.stringify(result),
@@ -1113,7 +1125,8 @@ async function handleVerifySession(
       );
     }
 
-    const result = await verifySession(env.DB, token);
+    // Pass SAAS_OWNERS env to check if user should have elevated access
+    const result = await verifySession(env.DB, token, env.SAAS_OWNERS);
 
     return new Response(
       JSON.stringify(result),

@@ -186,34 +186,75 @@ export async function getCommandCenterStats(env: any): Promise<CommandCenterStat
   }
 }
 
+/**
+ * Parse SAAS_OWNERS env variable into a Set of emails
+ */
+function getSaasOwnerEmails(env: any): Set<string> {
+  const saasOwners = env.SAAS_OWNERS || '';
+  const emails = saasOwners
+    .split(',')
+    .map((email: string) => email.trim().toLowerCase())
+    .filter((email: string) => email.length > 0);
+  return new Set(emails);
+}
+
+/**
+ * Verify that the request is from a saas-owner
+ * Checks both:
+ * 1. If user's email is in the SAAS_OWNERS env variable
+ * 2. OR if user has role 'saas-owner' in the database
+ */
+async function verifySaasOwner(
+  request: Request,
+  env: any
+): Promise<{ authorized: boolean; userId?: number; userEmail?: string; error?: string }> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { authorized: false, error: 'Unauthorized' };
+  }
+
+  const token = authHeader.substring(7);
+
+  const session = await env.DB.prepare(`
+    SELECT s.user_id, u.role, u.email
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.token = ? AND s.expires_at > datetime('now') AND s.revoked_at IS NULL
+  `).bind(token).first();
+
+  if (!session) {
+    return { authorized: false, error: 'Unauthorized' };
+  }
+
+  // Get list of saas-owner emails from env
+  const saasOwnerEmails = getSaasOwnerEmails(env);
+  const userEmail = (session.email || '').toLowerCase();
+
+  // Check if user is authorized:
+  // 1. Email is in SAAS_OWNERS env variable
+  // 2. OR role is 'saas-owner' in database
+  const isInEnvList = saasOwnerEmails.has(userEmail);
+  const hasDbRole = session.role === 'saas-owner';
+
+  if (!isInEnvList && !hasDbRole) {
+    console.log(`[SaaS Owner] Access denied for ${userEmail}. InEnvList: ${isInEnvList}, HasDbRole: ${hasDbRole}`);
+    return { authorized: false, error: 'Forbidden: saas-owner access required' };
+  }
+
+  console.log(`[SaaS Owner] Access granted for ${userEmail}. InEnvList: ${isInEnvList}, HasDbRole: ${hasDbRole}`);
+  return { authorized: true, userId: session.user_id, userEmail };
+}
+
 export async function handleCommandCenterRequest(
   request: Request,
   env: any,
   corsHeaders: Record<string, string>
 ): Promise<Response> {
   try {
-    // Verify user is saas-owner
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const token = authHeader.substring(7);
-
-    // Verify session and get user
-    const session = await env.DB.prepare(`
-      SELECT s.user_id, u.role
-      FROM sessions s
-      JOIN users u ON s.user_id = u.id
-      WHERE s.token = ? AND s.expires_at > datetime('now')
-    `).bind(token).first();
-
-    if (!session || session.role !== 'saas-owner') {
-      return new Response(JSON.stringify({ error: 'Forbidden: saas-owner role required' }), {
-        status: 403,
+    const auth = await verifySaasOwner(request, env);
+    if (!auth.authorized) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.error === 'Unauthorized' ? 401 : 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -227,6 +268,146 @@ export async function handleCommandCenterRequest(
     });
   } catch (error) {
     console.error('[Command Center] Request error:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+/**
+ * List all organizations for workspace switcher (saas-owner only)
+ */
+export async function handleListOrganizations(
+  request: Request,
+  env: any,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const auth = await verifySaasOwner(request, env);
+    if (!auth.authorized) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.error === 'Unauthorized' ? 401 : 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get all organizations with basic info for workspace switcher
+    const orgsResult = await env.DB.prepare(`
+      SELECT 
+        o.id,
+        o.name,
+        o.api_key,
+        o.created_at,
+        COUNT(DISTINCT v.visitor_id) as total_visitors,
+        MAX(v.last_seen_at) as last_activity,
+        CASE 
+          WHEN MAX(v.last_seen_at) > datetime('now', '-7 days') THEN 'active'
+          ELSE 'inactive'
+        END as status
+      FROM organizations o
+      LEFT JOIN visitors v ON o.api_key = v.api_key
+      GROUP BY o.id, o.name, o.api_key, o.created_at
+      ORDER BY o.name ASC
+    `).all();
+
+    const organizations = (orgsResult.results || []).map((org: any) => ({
+      id: org.id,
+      name: org.name,
+      apiKey: org.api_key,
+      totalVisitors: org.total_visitors || 0,
+      lastActivity: org.last_activity || org.created_at,
+      status: org.status || 'inactive'
+    }));
+
+    console.log(`[Workspace Switcher] Listed ${organizations.length} organizations for saas-owner`);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      organizations 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('[Workspace Switcher] Error listing organizations:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+/**
+ * Switch to a client workspace / start impersonation (saas-owner only)
+ */
+export async function handleSwitchWorkspace(
+  request: Request,
+  env: any,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  try {
+    const auth = await verifySaasOwner(request, env);
+    if (!auth.authorized) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.error === 'Unauthorized' ? 401 : 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const body = await request.json() as { organizationId?: number };
+    
+    if (!body.organizationId) {
+      return new Response(JSON.stringify({ error: 'organizationId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get the target organization
+    const org = await env.DB.prepare(`
+      SELECT id, name, api_key, slug
+      FROM organizations
+      WHERE id = ?
+    `).bind(body.organizationId).first();
+
+    if (!org) {
+      return new Response(JSON.stringify({ error: 'Organization not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Log the impersonation action for audit purposes
+    await env.DB.prepare(`
+      INSERT INTO audit_logs (user_id, action, ip_address, new_values)
+      VALUES (?, 'workspace_impersonation_start', ?, ?)
+    `).bind(
+      auth.userId,
+      request.headers.get('CF-Connecting-IP') || 'unknown',
+      JSON.stringify({ 
+        targetOrganizationId: org.id, 
+        targetOrganizationName: org.name,
+        targetApiKey: org.api_key
+      })
+    ).run();
+
+    console.log(`[Workspace Switcher] SaaS owner (user ${auth.userId}) switched to organization: ${org.name}`);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      organization: {
+        id: org.id,
+        name: org.name,
+        apiKey: org.api_key,
+        slug: org.slug
+      }
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('[Workspace Switcher] Error switching workspace:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

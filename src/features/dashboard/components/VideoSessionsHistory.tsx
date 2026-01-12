@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Video, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { getUserApiKey } from '../../../shared/utils/auth';
 
@@ -24,10 +24,22 @@ export function VideoSessionsHistory() {
   const [sessions, setSessions] = useState<VideoSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [apiKeyVersion, setApiKeyVersion] = useState(0);
+
+  // Listen for impersonation state changes
+  useEffect(() => {
+    const handleImpersonationChange = () => {
+      console.log('[VideoSessions] Impersonation state changed, refetching...');
+      setApiKeyVersion(v => v + 1);
+    };
+
+    window.addEventListener('tippen-impersonation-change', handleImpersonationChange);
+    return () => window.removeEventListener('tippen-impersonation-change', handleImpersonationChange);
+  }, []);
 
   useEffect(() => {
     fetchSessions();
-  }, [filterStatus]);
+  }, [filterStatus, apiKeyVersion]);
 
   const fetchSessions = async () => {
     try {
