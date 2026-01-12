@@ -22,7 +22,7 @@ export function Router() {
       const token = localStorage.getItem('tippen_auth_token');
 
       // Public routes don't need auth check
-      if (currentPath === '/landing' || currentPath === '/login' || currentPath === '/onboarding') {
+      if (currentPath === '/' || currentPath === '/landing' || currentPath === '/login' || currentPath === '/onboarding') {
         setIsAuthChecking(false);
         return;
       }
@@ -67,7 +67,7 @@ export function Router() {
   }, [currentPath]);
 
   // Public routes (no authentication required)
-  if (currentPath === '/landing') {
+  if (currentPath === '/' || currentPath === '/landing') {
     return <Landing />;
   }
 
