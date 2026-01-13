@@ -200,6 +200,60 @@
     - Pricing overview
     - Key stats and next steps
 
+### Automated Changelog System
+- **Date**: January 13, 2026
+- **Status**: ✅ Completed & Deployed
+- **Description**: Fully automated changelog system with public page and GitHub integration
+- **Features**:
+  - **Public Changelog Page** (`/changelog`):
+    - Beautiful gradient design with category filtering
+    - Grouped by date with sticky headers
+    - Shows commit hash, author, and descriptions
+    - Responsive design for all devices
+    - Category badges: Feature, Fix, Improvement, Breaking, Security, Update
+  - **Automated GitHub Integration**:
+    - GitHub Actions workflow automatically creates changelog entries on push
+    - Parses conventional commit format (feat:, fix:, etc.)
+    - Auto-detects categories from commit messages
+    - No manual intervention required
+  - **Git History Backfill**:
+    - Backfilled 50 commits from git history
+    - Script available: `scripts/backfill-changelog.js`
+    - Prevents duplicate entries via commit_hash
+  - **Database Storage**:
+    - D1 table: `changelog` with full metadata
+    - Tracks: version, title, description, commit_hash, author, category
+    - Indexed for fast queries
+  - **API Endpoints**:
+    - `GET /api/changelog` - Public endpoint for entries
+    - `POST /api/changelog` - Create single entry
+    - `POST /api/changelog/bulk` - Bulk import for backfilling
+    - `POST /api/changelog/github-webhook` - Webhook for GitHub Actions
+- **Files Created:**
+  - `cloudflare-backend/migration_007_add_changelog_table.sql` - Database schema
+  - `cloudflare-backend/src/changelog.ts` - Backend handler (400+ lines)
+  - `src/features/changelog/components/Changelog.tsx` - Public UI page
+  - `src/features/changelog/index.ts` - Feature export
+  - `scripts/backfill-changelog.js` - Backfill script
+  - `.github/workflows/changelog.yml` - GitHub Actions automation
+  - `CHANGELOG_SYSTEM.md` - Complete documentation
+- **Files Modified:**
+  - `cloudflare-backend/src/index.ts` - Added changelog routes
+  - `src/Router.tsx` - Added public `/changelog` route
+  - `src/features/landing/components/Landing.tsx` - Added changelog link in footer
+- **Deployment:**
+  - ✅ D1 migration applied successfully
+  - ✅ Backend deployed with changelog endpoints
+  - ✅ 50 git commits backfilled into database
+  - ✅ GitHub Actions workflow active
+  - ✅ Public page live at `/changelog`
+- **Benefits:**
+  - **Transparency:** Users see all updates in one place
+  - **Automation:** Zero manual work to maintain
+  - **Professional:** Clean, categorized presentation
+  - **Marketing:** Shows active development to prospects
+  - **SEO:** Public changelog indexed by search engines
+
 ## Next Steps
 - Build visitor management UI in dashboard (list, filter, search)
 - Add visitor analytics dashboard (charts, top companies, trends)

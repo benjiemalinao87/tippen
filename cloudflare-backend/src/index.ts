@@ -27,6 +27,7 @@ import {
 import { TRACKING_SCRIPT } from './trackingScript';
 import { getSlackConfig, saveSlackConfig, sendNewVisitorNotification } from './slack';
 import { handleCommandCenterRequest, handleListOrganizations, handleSwitchWorkspace } from './commandCenter';
+import { handleGetChangelog, handleCreateChangelog, handleGitHubWebhook, handleBulkCreateChangelog } from './changelog';
 
 export interface Env {
   VISITOR_COORDINATOR: DurableObjectNamespace;
@@ -182,6 +183,26 @@ export default {
     // Route: Get Slack configuration
     if (url.pathname === '/api/slack/config' && request.method === 'GET') {
       return handleGetSlackConfig(request, env, corsHeaders);
+    }
+
+    // Route: Get changelog entries (public)
+    if (url.pathname === '/api/changelog' && request.method === 'GET') {
+      return handleGetChangelog(request, env, corsHeaders);
+    }
+
+    // Route: Create changelog entry (protected)
+    if (url.pathname === '/api/changelog' && request.method === 'POST') {
+      return handleCreateChangelog(request, env, corsHeaders);
+    }
+
+    // Route: Bulk create changelog entries (for backfilling)
+    if (url.pathname === '/api/changelog/bulk' && request.method === 'POST') {
+      return handleBulkCreateChangelog(request, env, corsHeaders);
+    }
+
+    // Route: GitHub webhook for automatic changelog
+    if (url.pathname === '/api/changelog/github-webhook' && request.method === 'POST') {
+      return handleGitHubWebhook(request, env, corsHeaders);
     }
 
     return new Response('Tippen API', { status: 200 });

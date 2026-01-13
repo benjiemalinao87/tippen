@@ -1,0 +1,69 @@
+name: Auto Changelog
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Send commits to changelog API
+        env:
+          BACKEND_URL: ${{ secrets.TIPPEN_BACKEND_URL || 'https://tippen-backend.benjiemalinao879557.workers.dev' }}
+        run: |
+          # Get the commits from this push
+          COMMITS_JSON='${{ toJson(github.event.commits) }}'
+          
+          # Skip if no commits (e.g., force push)
+          if [ "$COMMITS_JSON" = "null" ] || [ -z "$COMMITS_JSON" ]; then
+            echo "No commits to process"
+            exit 0
+          fi
+          
+          # Build payload for GitHub webhook endpoint
+          PAYLOAD=$(cat <<EOF
+          {
+            "ref": "${{ github.ref }}",
+            "pusher": {
+              "name": "${{ github.actor }}",
+              "email": "${{ github.event.pusher.email }}"
+            },
+            "commits": $COMMITS_JSON,
+            "repository": {
+              "name": "${{ github.event.repository.name }}",
+              "full_name": "${{ github.repository }}"
+            }
+          }
+          EOF
+          )
+          
+          echo "Sending changelog update..."
+          
+          # Send to backend
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d "$PAYLOAD" \
+            "${BACKEND_URL}/api/changelog/github-webhook")
+          
+          # Parse response
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response: $BODY"
+          echo "HTTP Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Changelog updated successfully"
+          else
+            echo "⚠️ Changelog update failed (non-critical)"
+          fi

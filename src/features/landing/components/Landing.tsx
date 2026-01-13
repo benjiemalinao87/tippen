@@ -746,6 +746,7 @@ export function Landing() {
               <span className="text-xl font-bold tracking-tight">Tippen</span>
             </div>
             <div className="flex items-center gap-8 text-sm text-gray-500">
+              <a href="/changelog" className="hover:text-white transition-colors">Changelog</a>
               <a href="#" className="hover:text-white transition-colors">Privacy</a>
               <a href="#" className="hover:text-white transition-colors">Terms</a>
               <a href="#" className="hover:text-white transition-colors">Contact</a>

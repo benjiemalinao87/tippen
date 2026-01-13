@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import App from './App';
 import { Login, Onboarding } from './features/auth/components';
 import { Landing } from './features/landing';
+import { Changelog } from './features/changelog';
 
 export function Router() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -22,7 +23,7 @@ export function Router() {
       const token = localStorage.getItem('tippen_auth_token');
 
       // Public routes don't need auth check
-      if (currentPath === '/' || currentPath === '/landing' || currentPath === '/login' || currentPath === '/onboarding') {
+      if (currentPath === '/' || currentPath === '/landing' || currentPath === '/login' || currentPath === '/onboarding' || currentPath === '/changelog') {
         setIsAuthChecking(false);
         return;
       }
@@ -69,6 +70,10 @@ export function Router() {
   // Public routes (no authentication required)
   if (currentPath === '/' || currentPath === '/landing') {
     return <Landing />;
+  }
+
+  if (currentPath === '/changelog') {
+    return <Changelog />;
   }
 
   if (currentPath === '/login') {
