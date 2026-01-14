@@ -348,3 +348,59 @@ The Slack integration is now fully functional with:
 
 **Total Lines of Code:** ~1,400 lines across 11 files  
 **Status:** ✅ Successfully completed, deployed, and tested
+
+---
+
+# Lesson Learned - Sensitive Information in Commits
+
+## ⚠️ Never Include PII in Commit Messages or Changelogs
+
+**Date:** January 14, 2026  
+**Issue:** Email address accidentally included in commit message and displayed on public changelog
+
+### What Happened
+
+A commit message included an email address:
+```
+"Also added mahin.quader11@gmail.com to SAAS_OWNERS for admin access."
+```
+
+This was:
+1. Pushed to GitHub (public repo)
+2. Automatically added to the changelog
+3. Displayed on the public `/changelog` page
+
+### How It Was Fixed
+
+1. Updated the changelog entry in D1 database to remove the email
+2. The commit history on GitHub still contains it (harder to remove)
+
+### How It Should NOT Be Done
+
+❌ **Never include email addresses in commit messages**  
+❌ **Never include phone numbers or personal info**  
+❌ **Never include API keys, passwords, or secrets**  
+❌ **Never include internal user IDs that could identify people**  
+❌ **Never include customer data or company names (if sensitive)**
+
+### Best Practices
+
+✅ **Use generic descriptions:** "Added new admin user" instead of "Added john@example.com"  
+✅ **Reference tickets/issues:** "Added admin per TICKET-123"  
+✅ **Keep sensitive config separate:** Use environment variables, not commit messages  
+✅ **Review commits before pushing:** Double-check for PII  
+✅ **Use .gitignore for config files with sensitive data**
+
+### Example
+
+**Bad:**
+```
+git commit -m "Add john.smith@company.com to admin list with API key abc123"
+```
+
+**Good:**
+```
+git commit -m "Add new admin user to SAAS_OWNERS list"
+```
+
+**Status:** ⚠️ Lesson learned - be careful with commit messages!

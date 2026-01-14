@@ -18,35 +18,38 @@ jobs:
 
       - name: Send commits to changelog API
         env:
-          BACKEND_URL: ${{ secrets.TIPPEN_BACKEND_URL || 'https://tippen-backend.benjiemalinao879557.workers.dev' }}
+          BACKEND_URL: https://tippen-backend.benjiemalinao879557.workers.dev
+          COMMITS_JSON: ${{ toJson(github.event.commits) }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REPO_FULL_NAME: ${{ github.repository }}
         run: |
-          # Get the commits from this push
-          COMMITS_JSON='${{ toJson(github.event.commits) }}'
-          
           # Skip if no commits (e.g., force push)
           if [ "$COMMITS_JSON" = "null" ] || [ -z "$COMMITS_JSON" ]; then
             echo "No commits to process"
             exit 0
           fi
           
-          # Build payload for GitHub webhook endpoint
-          PAYLOAD=$(cat <<EOF
-          {
-            "ref": "${{ github.ref }}",
-            "pusher": {
-              "name": "${{ github.actor }}",
-              "email": "${{ github.event.pusher.email }}"
-            },
-            "commits": $COMMITS_JSON,
-            "repository": {
-              "name": "${{ github.event.repository.name }}",
-              "full_name": "${{ github.repository }}"
-            }
-          }
-          EOF
-          )
+          # Write commits to temp file to avoid shell escaping issues
+          echo "$COMMITS_JSON" > /tmp/commits.json
+          
+          # Build payload using jq for proper JSON handling
+          PAYLOAD=$(jq -n \
+            --arg ref "$GITHUB_REF" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg repo_name "$REPO_NAME" \
+            --arg repo_full "$REPO_FULL_NAME" \
+            --slurpfile commits /tmp/commits.json \
+            '{
+              ref: $ref,
+              pusher: { name: $actor, email: "" },
+              commits: $commits[0],
+              repository: { name: $repo_name, full_name: $repo_full }
+            }')
           
           echo "Sending changelog update..."
+          echo "Payload: $PAYLOAD"
           
           # Send to backend
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
@@ -66,4 +69,6 @@ jobs:
             echo "✅ Changelog updated successfully"
           else
             echo "⚠️ Changelog update failed (non-critical)"
+            # Don't fail the workflow for changelog issues
+            exit 0
           fi
