@@ -23,15 +23,15 @@ new_classes = ["VisitorCoordinator"]
 # Environment variables
 [vars]
 # Comma-separated list of email addresses that have saas-owner access to workspace switcher
-SAAS_OWNERS = "Tippen@dev.com"
+SAAS_OWNERS = "Tippen@dev.com,mahin.quader11@gmail.com"
 
 # Development environment
 [env.dev]
-vars = { ENVIRONMENT = "development", SAAS_OWNERS = "Tippen@dev.com" }
+vars = { ENVIRONMENT = "development", SAAS_OWNERS = "Tippen@dev.com,mahin.quader11@gmail.com" }
 
 # Production environment
 [env.production]
-vars = { ENVIRONMENT = "production", SAAS_OWNERS = "Tippen@dev.com" }
+vars = { ENVIRONMENT = "production", SAAS_OWNERS = "Tippen@dev.com,mahin.quader11@gmail.com" }
 
 # Secrets (set via CLI or Cloudflare Dashboard)
 # wrangler secret put ENRICH_API_KEY

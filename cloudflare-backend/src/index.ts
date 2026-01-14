@@ -644,24 +644,20 @@ async function enrichVisitorData(
 
 /**
  * Build fallback visitor data when enrichment is not available
+ * Note: We no longer use the referrer as the company name (it was confusing)
+ * Instead, we use the website they're visiting + "Visitor" or "Unknown Company"
  */
 function buildFallbackVisitor(visitor: any, ip: string): any {
-  // Extract domain from referrer or current URL
-  let companyName = 'Direct Visitor';
+  let companyName = 'Unknown Company';
 
-  if (visitor.referrer && visitor.referrer !== 'direct') {
-    try {
-      const referrerUrl = new URL(visitor.referrer);
-      companyName = referrerUrl.hostname.replace('www.', '');
-    } catch (e) {
-      // Invalid URL
-    }
-  } else if (visitor.url) {
+  // Use the website they're visiting to create a descriptive name
+  if (visitor.url) {
     try {
       const urlObj = new URL(visitor.url);
-      companyName = urlObj.hostname.replace('www.', '') + ' Visitor';
+      const hostname = urlObj.hostname.replace('www.', '');
+      companyName = `${hostname} Visitor`;
     } catch (e) {
-      // Invalid URL
+      // Invalid URL, keep "Unknown Company"
     }
   }
 
@@ -678,6 +674,8 @@ function buildFallbackVisitor(visitor: any, ip: string): any {
     lastRole: visitor.lastRole || null,
     _cached: false,
     _enrichmentSource: 'fallback',
+    // Keep referrer info separate - don't use it as company name
+    referrer: visitor.referrer || 'direct',
     userAgent: visitor.userAgent,
     screenResolution: visitor.screenResolution,
     language: visitor.language,
