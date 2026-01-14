@@ -339,7 +339,14 @@ async function handleVisitorTracking(
                 url: enrichedVisitor.url,
                 ip: enrichedVisitor.ip,
                 timestamp: new Date().toLocaleString(),
-                isReturning: !isNewVisitor
+                isReturning: !isNewVisitor,
+                // Enriched company data from Enrich.so
+                companyDomain: enrichedVisitor.domain || null,
+                industry: enrichedVisitor.industry || null,
+                employees: enrichedVisitor.staff || null,
+                enrichedLocation: enrichedVisitor.location || null,
+                enrichmentSource: enrichedVisitor._enrichmentSource || 'fallback',
+                isCached: enrichedVisitor._cached || false
               };
 
               console.log('[Tippen] Slack payload:', JSON.stringify(slackPayload, null, 2));
@@ -506,67 +513,91 @@ async function enrichVisitorData(
 
     if (response.ok) {
       const companyData = await response.json() as any;
-      console.log(`[Enrich.so] ✅ Success (${responseTime}ms):`, companyData);
+      console.log(`[Enrich.so] ✅ API Response (${responseTime}ms):`, companyData);
 
-      // Extract company data from Enrich.so response format
-      // API returns: { success: true, data: { name, domain, category: { industry }, location, metrics: { employees, estimatedAnnualRevenue } } }
-      const data = companyData.data || companyData;
-      const company = data.name || data.legalName || null;
-      const domain = data.domain || null;
-      const industry = data.category?.industry || data.category?.industryGroup || null;
-      const revenue = data.metrics?.estimatedAnnualRevenue || null;
-      const employees = data.metrics?.employees || data.metrics?.employeesRange || null;
-      const location = data.location || data.geo?.city ? `${data.geo?.city}, ${data.geo?.country}` : null;
+      // Check if Enrich.so actually found a company
+      // API returns { success: true, data: {...} } when found
+      // API returns { error: true, message: "No company record found" } when not found
+      if (companyData.success && companyData.data) {
+        const data = companyData.data;
+        const company = data.name || data.legalName || null;
+        const domain = data.domain || null;
+        const industry = data.category?.industry || data.category?.industryGroup || null;
+        const revenue = data.metrics?.estimatedAnnualRevenue || null;
+        const employees = data.metrics?.employees || data.metrics?.employeesRange || null;
+        const location = data.location || (data.geo?.city ? `${data.geo?.city}, ${data.geo?.country}` : null);
+        
+        console.log(`[Enrich.so] 🏢 Company found: ${company} (${domain})`);
+      
+        // ========================================
+        // STEP 3: Store in cache for future use
+        // ========================================
+        try {
+          await env.DB
+            .prepare(`
+              INSERT INTO enrichment_cache (
+                ip_address, company_name, company_domain, industry,
+                revenue, employees, location, raw_response, status,
+                api_response_time_ms, expires_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+30 days'))
+            `)
+            .bind(
+              ip,
+              company,
+              domain,
+              industry,
+              revenue,
+              employees,
+              location,
+              JSON.stringify(companyData),
+              'success',
+              responseTime
+            )
+            .run();
 
-      // ========================================
-      // STEP 3: Store in cache for future use
-      // ========================================
+          console.log(`[Cache STORED] 💾 Saved enrichment for IP: ${ip} (expires in 30 days)`);
+        } catch (cacheStoreError) {
+          console.error('[Cache] Failed to store in cache:', cacheStoreError);
+        }
+
+        // Return enriched visitor data with company info
+        return {
+          ...visitor,
+          ip,
+          company: company || 'Unknown Company',
+          domain: domain || null,
+          industry: industry || null,
+          revenue: revenue || null,
+          staff: employees || null,
+          location: location || visitor.timezone || 'Unknown Location',
+          deviceType: buildDeviceType(visitor.userAgent),
+          _cached: false,
+          _enrichmentSource: 'enrich_so',
+          userAgent: visitor.userAgent,
+          screenResolution: visitor.screenResolution,
+          language: visitor.language,
+        };
+      }
+
+      // Enrich.so returned 200 but no company found
+      console.log(`[Enrich.so] ⚠️ No company found for IP: ${ip} - ${companyData.message || 'Unknown reason'}`);
+      
+      // Cache the "not found" result to avoid repeated lookups
       try {
         await env.DB
           .prepare(`
             INSERT INTO enrichment_cache (
-              ip_address, company_name, company_domain, industry,
-              revenue, employees, location, raw_response, status,
-              api_response_time_ms, expires_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+30 days'))
+              ip_address, status, error_message, expires_at
+            ) VALUES (?, ?, ?, datetime('now', '+7 days'))
           `)
-          .bind(
-            ip,
-            company,
-            domain,
-            industry,
-            revenue,
-            employees,
-            location,
-            JSON.stringify(companyData), // Store full response for debugging
-            'success',
-            responseTime
-          )
+          .bind(ip, 'not_found', companyData.message || 'No company record found')
           .run();
-
-        console.log(`[Cache STORED] 💾 Saved enrichment for IP: ${ip} (expires in 30 days)`);
       } catch (cacheStoreError) {
-        console.error('[Cache] Failed to store in cache:', cacheStoreError);
-        // Continue anyway - enrichment still succeeded
+        console.error('[Cache] Failed to store not-found in cache:', cacheStoreError);
       }
 
-      // Return enriched visitor data
-      return {
-        ...visitor,
-        ip,
-        company: company || 'Unknown Company',
-        domain: domain || null,
-        industry: industry || null,
-        revenue: revenue || null,
-        staff: employees || null,
-        location: location || visitor.timezone || 'Unknown Location',
-        deviceType: buildDeviceType(visitor.userAgent),
-        _cached: false, // Fresh API call
-        _enrichmentSource: 'enrich_so',
-        userAgent: visitor.userAgent,
-        screenResolution: visitor.screenResolution,
-        language: visitor.language,
-      };
+      // Return fallback data
+      return buildFallbackVisitorData(visitor, ip);
     } else {
       const errorText = await response.text();
       console.error(`[Enrich.so] API error (${response.status}): ${errorText}`);
