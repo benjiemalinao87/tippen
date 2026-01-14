@@ -105,7 +105,7 @@ export function Onboarding() {
         localStorage.setItem('tippen_user', JSON.stringify(result.user));
 
         // Redirect to dashboard
-        window.location.href = '/';
+        window.location.href = '/app';
       } else {
         setError(result.error || 'Failed to create account. Please try again.');
       }
