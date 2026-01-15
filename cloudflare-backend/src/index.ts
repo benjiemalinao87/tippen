@@ -130,6 +130,11 @@ export default {
       return handleGetVideoSessions(request, env, corsHeaders, url);
     }
 
+    // Route: Get enriched visitors history (from D1 database)
+    if (url.pathname === '/api/analytics/enriched-visitors' && request.method === 'GET') {
+      return handleGetEnrichedVisitors(request, env, corsHeaders, url);
+    }
+
     // Route: Save video call feedback
     if (url.pathname === '/api/video-calls/feedback' && request.method === 'POST') {
       return handleSaveVideoCallFeedback(request, env, corsHeaders);
@@ -1017,6 +1022,118 @@ async function handleGetVideoSessions(
     );
   } catch (error: any) {
     console.error('Error fetching video sessions:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * Handle get enriched visitors history from D1 database
+ * Returns visitors that have enrichment data (company_domain is not null)
+ */
+async function handleGetEnrichedVisitors(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  url: URL
+): Promise<Response> {
+  try {
+    const apiKey = url.searchParams.get('api_key');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const enrichedOnly = url.searchParams.get('enriched_only') !== 'false'; // Default to true
+
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ error: 'API key required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Build query - fetch visitors with enrichment data
+    let query = `
+      SELECT
+        visitor_id,
+        company,
+        company_domain,
+        industry,
+        revenue,
+        employees,
+        enriched_location,
+        location,
+        last_role,
+        website,
+        page_views,
+        first_seen_at,
+        last_seen_at,
+        enrichment_source,
+        is_cached,
+        enriched_at
+      FROM visitors
+      WHERE api_key = ?
+    `;
+
+    if (enrichedOnly) {
+      query += ` AND company_domain IS NOT NULL AND company_domain != ''`;
+    }
+
+    query += ` ORDER BY last_seen_at DESC LIMIT ?`;
+
+    const result = await env.DB.prepare(query).bind(apiKey, limit).all();
+
+    // Transform the data to match frontend expectations
+    const visitors = (result.results || []).map((row: any) => ({
+      visitorId: row.visitor_id,
+      company: row.company,
+      domain: row.company_domain,
+      industry: row.industry,
+      revenue: row.revenue,
+      staff: row.employees,
+      employees: row.employees,
+      enrichedLocation: row.enriched_location,
+      location: row.enriched_location || row.location,
+      lastRole: row.last_role,
+      website: row.website,
+      pageViews: row.page_views,
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      timestamp: row.last_seen_at,
+      lastActivity: row.last_seen_at,
+      _enrichmentSource: row.enrichment_source,
+      _cached: row.is_cached === 1,
+      enrichedAt: row.enriched_at,
+      status: 'active' // Historical visitors are not "live"
+    }));
+
+    // Also get stats
+    const statsResult = await env.DB.prepare(`
+      SELECT
+        COUNT(*) as total_visitors,
+        COUNT(CASE WHEN company_domain IS NOT NULL AND company_domain != '' THEN 1 END) as enriched_visitors,
+        COUNT(DISTINCT industry) as unique_industries
+      FROM visitors
+      WHERE api_key = ?
+    `).bind(apiKey).first();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        visitors,
+        total: visitors.length,
+        stats: {
+          totalVisitors: statsResult?.total_visitors || 0,
+          enrichedVisitors: statsResult?.enriched_visitors || 0,
+          uniqueIndustries: statsResult?.unique_industries || 0,
+          enrichmentRate: statsResult?.total_visitors 
+            ? Math.round(((statsResult?.enriched_visitors || 0) / (statsResult?.total_visitors as number)) * 100)
+            : 0
+        }
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error fetching enriched visitors:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

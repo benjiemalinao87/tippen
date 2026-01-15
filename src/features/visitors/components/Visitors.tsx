@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Video, X, Wifi, WifiOff } from 'lucide-react';
+import { Video, X, Wifi, WifiOff, Users, Sparkles } from 'lucide-react';
 import { useVisitorWebSocket } from '../../../shared/hooks';
 import type { Visitor as VisitorType } from '../../../shared/hooks';
 import { VisitorStatsCards } from './VisitorStatsCards';
@@ -11,6 +11,7 @@ import { VisitorDetailsModal } from './VisitorDetailsModal';
 import { DateRangePicker, type DateRangeType } from './DateRangePicker';
 import { VideoSessionsHistory } from '../../dashboard/components/VideoSessionsHistory';
 import { VideoCallFeedbackModal, type CallFeedback } from './VideoCallFeedbackModal';
+import { EnrichedVisitorsHistory } from './EnrichedVisitorsHistory';
 import { slackService } from '../../../services/slackService';
 import { getVisitorAnalytics, type VisitorAnalytics } from '../../../services/dashboardApi';
 import { getUserApiKey } from '../../../shared/utils/auth';
@@ -197,6 +198,9 @@ export function Visitors() {
   const [pendingFeedbackSession, setPendingFeedbackSession] = useState<{ sessionId: string; company: string } | null>(null);
   const previousVisitorCountRef = useRef<number>(0);
   const [hasCheckedUrlParam, setHasCheckedUrlParam] = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'realtime' | 'enriched'>('realtime');
 
   // Date range and analytics state
   const [selectedRange, setSelectedRange] = useState<DateRangeType>('active');
@@ -523,42 +527,82 @@ export function Visitors() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <DateRangePicker
-            selectedRange={selectedRange}
-            onRangeChange={handleRangeChange}
-          />
-          <div className="flex items-center gap-2">
-            {getConnectionStatusIcon()}
-            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-              {connectionStatus}
-            </span>
-          </div>
-          <button
-            onClick={refreshVisitors}
-            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Refresh
-          </button>
+          {activeTab === 'realtime' && (
+            <>
+              <DateRangePicker
+                selectedRange={selectedRange}
+                onRangeChange={handleRangeChange}
+              />
+              <div className="flex items-center gap-2">
+                {getConnectionStatusIcon()}
+                <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                  {connectionStatus}
+                </span>
+              </div>
+              <button
+                onClick={refreshVisitors}
+                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Refresh
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <VisitorStatsCards visitors={visitors} analytics={analytics} />
-
-      {/* Charts and Widgets Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <VisitorActivityChart visitors={visitors} analytics={analytics} />
-        <TopCompaniesWidget visitors={visitors} />
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="flex gap-4" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('realtime')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'realtime'
+                ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Real-Time Visitors
+            {visitors.length > 0 && (
+              <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                {visitors.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('enriched')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'enriched'
+                ? 'border-purple-600 text-purple-600 dark:border-purple-400 dark:text-purple-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Enriched History
+          </button>
+        </nav>
       </div>
 
-      {/* Location Map Widget */}
-      <VisitorMapWidget visitors={visitors} analytics={analytics} />
+      {/* Tab Content */}
+      {activeTab === 'realtime' ? (
+        <>
+          {/* Stats Cards */}
+          <VisitorStatsCards visitors={visitors} analytics={analytics} />
 
-      {/* Video Sessions History */}
-      <VideoSessionsHistory />
+          {/* Charts and Widgets Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VisitorActivityChart visitors={visitors} analytics={analytics} />
+            <TopCompaniesWidget visitors={visitors} />
+          </div>
 
-      {/* Visitor Table */}
-      <VisitorTable 
+          {/* Location Map Widget */}
+          <VisitorMapWidget visitors={visitors} analytics={analytics} />
+
+          {/* Video Sessions History */}
+          <VideoSessionsHistory />
+
+          {/* Visitor Table */}
+          <VisitorTable 
         visitors={[...visitors].sort((a, b) => {
           // Sort by enrichment: enriched companies with domain first
           const aHasEnrichment = a.domain && a.domain !== '';
@@ -594,6 +638,11 @@ export function Visitors() {
           }
         }}
       />
+        </>
+      ) : (
+        /* Enriched Visitors History Tab */
+        <EnrichedVisitorsHistory />
+      )}
 
       {/* Visitor Details Modal */}
       {selectedVisitor && (
