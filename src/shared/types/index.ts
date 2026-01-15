@@ -29,6 +29,8 @@ export interface Visitor {
   industry?: string;
   revenue?: string;
   staff?: number;
+  employees?: number;
+  enrichedLocation?: string;
   _enrichmentSource?: 'enrich_so' | 'cache' | 'fallback';
   _cached?: boolean;
 }

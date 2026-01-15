@@ -236,7 +236,7 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
                   </td>
                   <td className="py-4 px-4">
                     <span className="text-sm text-gray-900 dark:text-gray-100">
-                      {visitor.employees ? `~${visitor.employees.toLocaleString()}` : (
+                      {(visitor.staff || visitor.employees) ? `~${(visitor.staff || visitor.employees)?.toLocaleString()}` : (
                         <span className="text-gray-400 dark:text-gray-500 italic">—</span>
                       )}
                     </span>

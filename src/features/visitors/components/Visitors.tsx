@@ -18,8 +18,6 @@ import { getUserApiKey } from '../../../shared/utils/auth';
 // Extended visitor interface for display purposes
 interface Visitor extends VisitorType {
   id?: string; // For backwards compatibility
-  revenue?: string;
-  staff?: number;
   lastSignedRole?: string;
 }
 
