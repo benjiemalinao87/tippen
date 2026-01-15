@@ -561,7 +561,29 @@ export function Visitors() {
 
       {/* Visitor Table */}
       <VisitorTable 
-        visitors={visitors}
+        visitors={[...visitors].sort((a, b) => {
+          // Sort by enrichment: enriched companies with domain first
+          const aHasEnrichment = a.domain && a.domain !== '';
+          const bHasEnrichment = b.domain && b.domain !== '';
+          
+          if (aHasEnrichment && !bHasEnrichment) return -1;
+          if (!aHasEnrichment && bHasEnrichment) return 1;
+          
+          // Then by enrichment source (enrich_so > cache > fallback)
+          const enrichmentPriority: Record<string, number> = {
+            'enrich_so': 3,
+            'cache': 2,
+            'fallback': 1
+          };
+          
+          const aPriority = enrichmentPriority[a._enrichmentSource || 'fallback'] || 0;
+          const bPriority = enrichmentPriority[b._enrichmentSource || 'fallback'] || 0;
+          
+          if (aPriority !== bPriority) return bPriority - aPriority;
+          
+          // Finally by timestamp (most recent first)
+          return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
+        })}
         onViewDetails={setSelectedVisitor}
         onStartCall={handleStartCall}
         activeCall={activeCall}

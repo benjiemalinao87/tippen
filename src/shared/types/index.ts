@@ -24,6 +24,13 @@ export interface Visitor {
   status: 'active' | 'video_invited' | 'in_call';
   guestUrl?: string;
   website: string;
+  // Enrichment fields from Enrich.so
+  domain?: string;
+  industry?: string;
+  revenue?: string;
+  staff?: number;
+  _enrichmentSource?: 'enrich_so' | 'cache' | 'fallback';
+  _cached?: boolean;
 }
 
 export interface Call {

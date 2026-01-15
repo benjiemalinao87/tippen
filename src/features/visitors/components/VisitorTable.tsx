@@ -81,9 +81,15 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
   };
 
   const getEnrichmentIndicator = (visitor: Visitor) => {
-    const source = visitor.enrichmentSource;
+    const source = visitor._enrichmentSource;
+    const hasCompanyData = visitor.domain && visitor.domain !== '';
 
-    if (source === 'enrich_so' && visitor.isCached) {
+    // Only show enrichment indicator if we have actual company data
+    if (!hasCompanyData) {
+      return null;
+    }
+
+    if (source === 'cache') {
       return {
         icon: Database,
         color: 'text-green-600 dark:text-green-400',
@@ -181,7 +187,6 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
                 const visitorId = visitor.visitorId || visitor.id || '';
                 const isActiveCall = activeCall === visitorId;
                 const enrichmentIndicator = getEnrichmentIndicator(visitor);
-                const EnrichmentIcon = enrichmentIndicator.icon;
 
                 return (
                 <tr
@@ -202,13 +207,15 @@ export function VisitorTable({ visitors, onViewDetails, activeCall, onToggleCall
                           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                             {visitor.company}
                           </p>
-                          <EnrichmentIcon
-                            className={`w-3.5 h-3.5 flex-shrink-0 ${enrichmentIndicator.color}`}
-                            title={enrichmentIndicator.tooltip}
-                          />
+                          {enrichmentIndicator && (
+                            <enrichmentIndicator.icon
+                              className={`w-3.5 h-3.5 flex-shrink-0 ${enrichmentIndicator.color}`}
+                              title={enrichmentIndicator.tooltip}
+                            />
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {visitor.companyDomain || visitor.website}
+                          {visitor.domain || visitor.website}
                         </p>
                       </div>
                     </div>
